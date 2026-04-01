@@ -2,12 +2,25 @@ import stable_retro
 from agents.random_agent import MarioKartRandomAgent
 import config as cfg
 import numpy as np
+import os
+
+
+GAME_NAME = "SuperMarioKart-Snes"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def main():
-    env = stable_retro.make(game='SuperMarioKart-Snes', render_mode=None)
+
+    env = stable_retro.make(
+        game=GAME_NAME,
+        state=cfg.state,
+        scenario='speed', #cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
+        render_mode=cfg.render_mode,
+        inttype=stable_retro.data.Integrations.ALL
+    )
     agent = MarioKartRandomAgent(env)
-    total_episodes_length = 0
     episode_returns = []
+    episode_lengths = []
     
     # Training Loop
     for episode in range(cfg.n_episodes):
@@ -27,10 +40,20 @@ def main():
             t += 1
 
         episode_returns.append(episode_return)
-        if cfg.print_every and episode % cfg.print_every == 0:
+        episode_lengths.append(t)
+
+        if cfg.print_every and (episode + 1) % cfg.print_every == 0:
             avg_return = np.mean(episode_returns[-cfg.print_every:])
+            avg_length = np.mean(episode_lengths[-cfg.print_every:])
             print(f"Average Return (last {cfg.print_every} episodes): {avg_return}")
-            print(f"Average Episode Length (last {cfg.print_every} episodes): {total_episodes_length / cfg.print_every}")
+            print(f"Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
+
+        # Debug signal to verify reward script is connected.
+        if episode < 3:
+            print(f"Episode {episode + 1}: return={episode_return}, steps={t}")
 
 if __name__ == "__main__":
+    custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
+    stable_retro.data.Integrations.add_custom_path(custom_path)
+
     main()
