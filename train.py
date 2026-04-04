@@ -20,7 +20,17 @@ def main():
         render_mode=cfg.render_mode,
         inttype=stable_retro.data.Integrations.ALL
     )
-    agent = Deep_RL_Agent(env)
+    agent = Deep_RL_Agent(
+        env,
+        discount=0.99,
+        learning_rate=0.00025,
+        buffer_size=100000,
+        batch_size=64,
+        target_update_freq=5000,
+        epsilon_start=1.0,
+        epsilon_min=0.01,
+        epsilon_decay=0.99999
+    )
     env = agent.wrap_env(env)
 
     episode_returns = []
