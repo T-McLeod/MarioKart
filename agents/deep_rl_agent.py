@@ -260,13 +260,15 @@ class Deep_RL_Agent:
         """Loads the training state. Returns the episode to resume from."""
         model_path = f"{filepath}_model.pth"
         buffer_path = f"{filepath}_buffer.pkl"
+
+        print(f"Attempting to load checkpoint from {model_path}...")
         
         if not os.path.exists(model_path):
             print("No checkpoint found. Starting fresh.")
             return 0 # Start at episode 0
 
         # 1. Load PyTorch State
-        checkpoint = torch.load(model_path, map_location=self.device)
+        checkpoint = torch.load(model_path, map_location=device)
         self.main_q.load_state_dict(checkpoint['main_q_state'])
         self.target_q.load_state_dict(checkpoint['target_q_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state'])
@@ -275,9 +277,14 @@ class Deep_RL_Agent:
 
         # 2. Load the Replay Buffer
         if os.path.exists(buffer_path):
-            with open(buffer_path, 'rb') as f:
-                self.replay_buffer = pickle.load(f)
-            print(f"Buffer loaded with {len(self.replay_buffer)} experiences.")
+            try:
+                with open(buffer_path, 'rb') as f:
+                    replay_buffer = pickle.load(f)
+                    self.replay_buffer = replay_buffer
+                print(f"Buffer loaded with {len(self.replay_buffer)} experiences.")
+            except (EOFError, pickle.UnpicklingError) as e:
+                print(f"WARNING: Replay buffer file is corrupted ({e}).")
+                print("Starting with an empty replay buffer. Neural network weights are secure!")
 
         print(f"Successfully resumed from Episode {resume_episode} with Epsilon at {self.epsilon:.4f}")
         return resume_episode

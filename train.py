@@ -13,6 +13,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def main():
     checkpoint_prefix = "models/mario_cluster_ckpt"
+    episode_suffix = "500"
 
     env = stable_retro.make(
         game=GAME_NAME,
@@ -25,19 +26,20 @@ def main():
         env,
         discount=0.99,
         learning_rate=0.00025,
-        buffer_size=100000,
+        buffer_size=25000,
         batch_size=64,
         target_update_freq=5000,
         epsilon_start=1.0,
         epsilon_min=0.01,
         epsilon_decay=0.99999
     )
+    start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
     env = agent.wrap_env(env)
 
     episode_returns = []
     episode_lengths = []
     # Training Loop
-    for episode in range(cfg.n_episodes):
+    for episode in range(start_episode, cfg.n_episodes):
         state, info = env.reset()
         episode_over = False
         t = 0
