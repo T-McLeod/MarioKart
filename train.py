@@ -65,10 +65,9 @@ def main():
             print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
 
         if episode % 500 == 0 and episode > 0:
-            agent.save_checkpoint(checkpoint_prefix, episode)
+            print(f"Saving checkpoint at episode {episode}...")
+            agent.save_checkpoint(checkpoint_prefix + f"_{episode}", episode)
 
-    print("Training complete. Saving agent...")
-    agent.save("models/mario_final.pth")
 
 if __name__ == "__main__":
     custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")

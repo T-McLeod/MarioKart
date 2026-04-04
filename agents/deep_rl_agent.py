@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
 from wrapper import DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
+import pickle
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
 if torch.cuda.is_available():
