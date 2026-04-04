@@ -1,1 +1,6 @@
 Integration files from: https://github.com/esteveste/gym-SuperMarioKart-Snes
+
+`pip uninstall torch torchvision torchaudio nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 -y`
+`pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121`
+`python3 -c "import torch; print(f'GPU Available: {torch.cuda.is_available()} | Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"`
+
