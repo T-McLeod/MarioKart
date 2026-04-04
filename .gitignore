@@ -76,3 +76,5 @@ logs/
 # Project-specific large assets
 roms/
 .env
+
+models/

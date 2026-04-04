@@ -55,6 +55,9 @@ def main():
         if episode < 3:
             print(f"Episode {episode + 1}: return={episode_return}, steps={t}")
 
+    print("Training complete. Saving agent...")
+    agent.save("models/mario_final.pth")
+
 if __name__ == "__main__":
     custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
     stable_retro.data.Integrations.add_custom_path(custom_path)

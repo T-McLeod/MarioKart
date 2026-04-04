@@ -1,4 +1,5 @@
 import torch
+import os
 import torch.nn as nn
 from random import sample, random, choices
 from collections import deque
@@ -127,7 +128,7 @@ class Deep_RL_Agent:
         self.action_space = env.action_space
 
         # TODO: Complete initialization of networks, loss, optimizer, etc.
-        self.action_space_size = len(DISCRETE_ACTIONS)
+        self.action_space_size = len(SIMPLE_ACTIONS)
         self.main_q = NeuralNet(self.action_space_size)
         self.target_q = NeuralNet(self.action_space_size)
         self.target_q.load_state_dict(self.main_q.state_dict())
@@ -224,7 +225,26 @@ class Deep_RL_Agent:
         env = MarioToPyTorch(env)
 
         # 4. Discrete Action Wrapper
-        action_map = [np.array(a, dtype=np.int8) for a in DISCRETE_ACTIONS]
+        action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
         env = DiscreteActionWrapper(env, action_map=action_map)
         
         return env
+    
+
+    def save(self, filepath="models/mario_dqn.pth"):
+        """Saves the Q-network weights."""
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        # Save only the main network, the target network isn't needed for replay
+        torch.save(self.main_q.state_dict(), filepath)
+        print(f"Model successfully saved to {filepath}")
+
+
+    def load(self, filepath="models/mario_dqn.pth"):
+        """Loads weights, automatically mapping GPU weights to CPU if needed."""
+        # map_location is CRITICAL for moving from Cluster (GPU) to Laptop (CPU)
+        state_dict = torch.load(filepath, map_location=self.device)
+        self.main_q.load_state_dict(state_dict)
+        
+        # Set to evaluation mode (disables dropout/batchnorm if you added them)
+        self.main_q.eval() 
+        print(f"Model successfully loaded from {filepath}")
