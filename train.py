@@ -39,6 +39,7 @@ def main():
     episode_returns = []
     episode_lengths = []
     # Training Loop
+    print(f"Starting training from Episode {start_episode} to Episode {cfg.n_episodes}...")
     for episode in range(start_episode, cfg.n_episodes):
         state, info = env.reset()
         episode_over = False
