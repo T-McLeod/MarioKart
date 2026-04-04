@@ -58,8 +58,10 @@ def main():
         if cfg.print_every and (episode + 1) % cfg.print_every == 0:
             avg_return = np.mean(episode_returns[-cfg.print_every:])
             avg_length = np.mean(episode_lengths[-cfg.print_every:])
-            print(f"Average Return (last {cfg.print_every} episodes): {avg_return}")
-            print(f"Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
+
+            print(f"Episode {episode + 1}/{cfg.n_episodes} completed.")
+            print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
+            print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
 
         # Debug signal to verify reward script is connected.
         if episode < 3:
