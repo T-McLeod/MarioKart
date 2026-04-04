@@ -171,7 +171,9 @@ class Deep_RL_Agent:
             next_state: Next state
             terminated: Whether episode terminated
         """
-        self.replay_buffer.append((state, action, reward, next_state, terminated))
+        state_uint8 = (state * 255).astype(np.uint8)
+        next_state_uint8 = (next_state * 255).astype(np.uint8)
+        self.replay_buffer.append((state_uint8, action, reward, next_state_uint8, terminated))
 
         if len(self.replay_buffer) < self.batch_size:
             return
@@ -182,10 +184,10 @@ class Deep_RL_Agent:
         states = np.stack([np.array(s) for s in states])
         next_states = np.stack([np.array(s) for s in next_states])
 
-        states = torch.tensor(np.array(states), dtype=torch.float).to(device)
+        states = torch.tensor(np.array(states), dtype=torch.float32).to(device) / 255.0
         actions = torch.tensor(np.array(actions), dtype=torch.long).unsqueeze(1).to(device)
         rewards = torch.tensor(np.array(rewards), dtype=torch.float).unsqueeze(1).to(device)
-        next_states = torch.tensor(np.array(next_states), dtype=torch.float).to(device)
+        next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(device) / 255.0
         terminations = torch.tensor(np.array(dones), dtype=torch.int).unsqueeze(1).to(device)
 
         # TODO: Implement DQN update step
