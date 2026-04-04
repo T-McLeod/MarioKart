@@ -48,3 +48,6 @@ max_timesteps = _get_int("MK_MAX_TIMESTEPS", 5000)
 
 # Print rolling metrics every N episodes. Set to 0 to disable logs.
 print_every = _get_int("MK_PRINT_EVERY", 5)
+
+# Optional scenario name for the integration. Only needed if your integration defines multiple scenarios.
+scenario = _get("MK_SCENARIO", "scenario")

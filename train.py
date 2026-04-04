@@ -1,8 +1,10 @@
 import stable_retro
 from agents.random_agent import MarioKartRandomAgent
+from agents.deep_rl_agent import Deep_RL_Agent
 import config as cfg
 import numpy as np
 import os
+from wrapper import MarioResize, MarioToPyTorch
 
 
 GAME_NAME = "SuperMarioKart-Snes"
@@ -14,14 +16,15 @@ def main():
     env = stable_retro.make(
         game=GAME_NAME,
         state=cfg.state,
-        scenario='speed', #cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
+        scenario=cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
         render_mode=cfg.render_mode,
         inttype=stable_retro.data.Integrations.ALL
     )
-    agent = MarioKartRandomAgent(env)
+    agent = Deep_RL_Agent(env)
+    env = agent.wrap_env(env)
+
     episode_returns = []
     episode_lengths = []
-    
     # Training Loop
     for episode in range(cfg.n_episodes):
         state, info = env.reset()
@@ -30,7 +33,7 @@ def main():
         episode_return = 0
         
         while not episode_over and (cfg.max_timesteps <= 0 or t < cfg.max_timesteps):
-            action = agent.select_action(state)
+            action = agent.action_select(state)
             next_state, reward, terminated, truncated, info = env.step(action)
             episode_return += reward
             agent.update(state, action, reward, next_state, terminated)
