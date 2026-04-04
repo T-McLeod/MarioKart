@@ -43,3 +43,30 @@ class DiscreteActionWrapper(gym.ActionWrapper):
 
     def action(self, action):
         return self.action_map[action]
+    
+
+class MaxAndSkipEnv(gym.Wrapper):
+    """
+    Returns only every `skip`-th frame. 
+    Repeats the action for the skipped frames and accumulates the reward.
+    """
+    def __init__(self, env, skip=4):
+        super().__init__(env)
+        self._skip = skip
+
+    def step(self, action):
+        total_reward = 0.0
+        terminated = False
+        truncated = False
+        
+        for _ in range(self._skip):
+            obs, reward, term, trunc, info = self.env.step(action)
+            total_reward += reward
+            terminated = term or terminated
+            truncated = trunc or truncated
+            
+            if terminated or truncated:
+                break
+                
+        # Return the final observation of the skipped sequence
+        return obs, total_reward, terminated, truncated, info

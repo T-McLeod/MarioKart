@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DiscreteActionWrapper, MarioResize, MarioToPyTorch
+from wrapper import DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
 if torch.cuda.is_available():
@@ -217,6 +217,9 @@ class Deep_RL_Agent:
         """
         # 1. Custom Preprocessing (Grayscale + Resize to 84x84)
         env = MarioResize(env)
+
+        # 2. Frame Skipping
+        env = MaxAndSkipEnv(env, skip=4)
         
         # 2. Temporal Stacking (4 frames for velocity)
         env = FrameStackObservation(env, 4)
