@@ -234,20 +234,49 @@ class Deep_RL_Agent:
         return env
     
 
-    def save(self, filepath="models/mario_dqn.pth"):
-        """Saves the Q-network weights."""
+    def save_checkpoint(self, filepath, episode):
+        """Saves the entire training state for a seamless resume."""
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        # Save only the main network, the target network isn't needed for replay
-        torch.save(self.main_q.state_dict(), filepath)
-        print(f"Model successfully saved to {filepath}")
-
-
-    def load(self, filepath="models/mario_dqn.pth"):
-        """Loads weights, automatically mapping GPU weights to CPU if needed."""
-        # map_location is CRITICAL for moving from Cluster (GPU) to Laptop (CPU)
-        state_dict = torch.load(filepath, map_location=self.device)
-        self.main_q.load_state_dict(state_dict)
         
-        # Set to evaluation mode (disables dropout/batchnorm if you added them)
-        self.main_q.eval() 
-        print(f"Model successfully loaded from {filepath}")
+        # 1. Save PyTorch State (Main Network, Target Network, Optimizer)
+        checkpoint = {
+            'episode': episode,
+            'epsilon': self.epsilon,
+            'main_q_state': self.main_q.state_dict(),
+            'target_q_state': self.target_q.state_dict(), # Keeps the target stable on resume
+            'optimizer_state': self.optimizer.state_dict() # Critical for Adam momentum
+        }
+        torch.save(checkpoint, f"{filepath}_model.pth")
+
+        # 2. Save the Replay Buffer
+        # Note: 'wb' means write-binary
+        with open(f"{filepath}_buffer.pkl", 'wb') as f:
+            pickle.dump(self.replay_buffer, f)
+            
+        print(f"Checkpoint successfully saved at Episode {episode}.")
+
+    def load_checkpoint(self, filepath):
+        """Loads the training state. Returns the episode to resume from."""
+        model_path = f"{filepath}_model.pth"
+        buffer_path = f"{filepath}_buffer.pkl"
+        
+        if not os.path.exists(model_path):
+            print("No checkpoint found. Starting fresh.")
+            return 0 # Start at episode 0
+
+        # 1. Load PyTorch State
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.main_q.load_state_dict(checkpoint['main_q_state'])
+        self.target_q.load_state_dict(checkpoint['target_q_state'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state'])
+        self.epsilon = checkpoint['epsilon']
+        resume_episode = checkpoint['episode']
+
+        # 2. Load the Replay Buffer
+        if os.path.exists(buffer_path):
+            with open(buffer_path, 'rb') as f:
+                self.replay_buffer = pickle.load(f)
+            print(f"Buffer loaded with {len(self.replay_buffer)} experiences.")
+
+        print(f"Successfully resumed from Episode {resume_episode} with Epsilon at {self.epsilon:.4f}")
+        return resume_episode

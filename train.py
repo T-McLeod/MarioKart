@@ -12,6 +12,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
+    checkpoint_prefix = "models/mario_cluster_ckpt"
 
     env = stable_retro.make(
         game=GAME_NAME,
@@ -63,9 +64,8 @@ def main():
             print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
             print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
 
-        # Debug signal to verify reward script is connected.
-        if episode < 3:
-            print(f"Episode {episode + 1}: return={episode_return}, steps={t}")
+        if episode % 500 == 0 and episode > 0:
+            agent.save_checkpoint(checkpoint_prefix, episode)
 
     print("Training complete. Saving agent...")
     agent.save("models/mario_final.pth")
