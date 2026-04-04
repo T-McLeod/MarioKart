@@ -141,10 +141,37 @@ end
 
 function isDoneTrain()
 
-	return isDone() or isHittingWall()
+	return isDone() or isStuck() or not isMakingProgress()
 
 end
 
+max_checkpoint = -1
+function isProgressMade()
+
+	local checkpoint = getCheckpoint()
+
+	if checkpoint > max_checkpoint then
+		max_checkpoint = checkpoint
+		return true
+	end
+
+	return false
+end
+
+consecutive_no_progress_frames = 0
+function isMakingProgress()
+	if isProgressMade() then
+		consecutive_no_progress_frames = 0
+	else
+		consecutive_no_progress_frames = consecutive_no_progress_frames + 1
+	end
+
+	if consecutive_no_progress_frames >= 1000 then
+		consecutive_no_progress_frames = 0
+		return false
+	end
+	return true
+end
 
 function getExperimentalReward()
 	
@@ -162,6 +189,22 @@ function getExperimentalReward()
 	return reward
 end
 
+consecutive_stuck_frames = 0
+function isStuck()
+	if data.kart1_speed <= 20 then
+		-- hit a wall, or fells off (40,32) 
+		consecutive_stuck_frames = consecutive_stuck_frames + 1
+	else
+		consecutive_stuck_frames = 0
+	end
+
+	if consecutive_stuck_frames >= 300 then
+		consecutive_stuck_frames = 0
+		return true
+	end
+
+	return false
+end
 
 wall_hits=0
 wall_steps=0

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
+from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
 import pickle
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
@@ -100,7 +100,8 @@ class Deep_RL_Agent:
     """
     def __init__(self, env, discount=0.99, learning_rate=0.001,
                  buffer_size=100000, batch_size=64, target_update_freq=1000,
-                 epsilon_start=1.0, epsilon_min=0.01, epsilon_decay=0.999):
+                 epsilon_start=1.0, epsilon_min=0.01, epsilon_decay=0.999,
+                 verbose=False):
         """
         Initialize the DQN agent.
 
@@ -122,6 +123,7 @@ class Deep_RL_Agent:
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.steps = 0
+        self.verbose = verbose
 
         # Initialize replay buffer
         self.replay_buffer = deque(maxlen=buffer_size)
@@ -212,12 +214,16 @@ class Deep_RL_Agent:
         self.epsilon = max(self.epsilon_min, self.epsilon_decay * self.epsilon)
 
 
-    @staticmethod
-    def wrap_env(env):
+    def wrap_env(self, env):
         """
         The Agent-Environment Contract: 
         Applies all necessary transformations for this specific agent.
         """
+
+        if self.verbose:
+            print("Debug Observation Wrapper Enabled: Original observations will be printed to console.")
+            env = DebugObservation(env)
+
         # 1. Custom Preprocessing (Grayscale + Resize to 84x84)
         env = MarioResize(env)
 

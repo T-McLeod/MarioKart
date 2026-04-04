@@ -13,7 +13,19 @@ class MarioResize(gym.ObservationWrapper):
         # 2. Resize to 84x84
         obs = cv2.resize(obs, (84, 84), interpolation=cv2.INTER_AREA)
         return obs[:, :, None] # Add channel dim back for FrameStack
+
+
+class DebugObservation(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(84, 84, 1), dtype=np.uint8)
     
+    
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        # print("Kart Speed: ", info.get("kart1_speed", "N/A"))
+        return obs, reward, terminated, truncated, info
+
 
 class MarioToPyTorch(gym.ObservationWrapper):
     def __init__(self, env):
