@@ -136,7 +136,6 @@ end
 function getRewardTrain()
 	-- 1 passing checkpoint
 	return getCheckpointReward() + getExperimentalReward()
-
 end
 
 function isDoneTrain()
@@ -159,6 +158,7 @@ function isProgressMade()
 end
 
 consecutive_no_progress_frames = 0
+making_progress = true
 function isMakingProgress()
 	if isProgressMade() then
 		consecutive_no_progress_frames = 0
@@ -185,11 +185,17 @@ function getExperimentalReward()
 		-- feel of, or deep dived
 		reward=-1 
 	end
+	if isStuck() then
+		reward = reward - 10
+	elseif not isMakingProgress() then
+		reward = reward - 10
+	end
 
 	return reward
 end
 
 consecutive_stuck_frames = 0
+is_stuck = false
 function isStuck()
 	if data.kart1_speed <= 20 then
 		-- hit a wall, or fells off (40,32) 
