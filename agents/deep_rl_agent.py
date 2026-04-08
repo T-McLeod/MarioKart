@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
+from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, CompleteLapReward
 import pickle
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
@@ -100,7 +100,8 @@ class Deep_RL_Agent:
     """
     def __init__(self, env, discount=0.99, learning_rate=0.001,
                  buffer_size=100000, batch_size=64, target_update_freq=1000,
-                 epsilon_start=1.0, epsilon_min=0.01, epsilon_decay=0.999):
+                 epsilon_start=1.0, epsilon_min=0.01, epsilon_decay=0.999,
+                 verbose=False):
         """
         Initialize the DQN agent.
 
@@ -122,6 +123,7 @@ class Deep_RL_Agent:
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.steps = 0
+        self.verbose = verbose
 
         # Initialize replay buffer
         self.replay_buffer = deque(maxlen=buffer_size)
@@ -134,7 +136,7 @@ class Deep_RL_Agent:
         self.target_q = NeuralNet(self.action_space_size)
         self.target_q.load_state_dict(self.main_q.state_dict())
 
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()
         self.optimizer = torch.optim.SGD(self.main_q.parameters(), lr=learning_rate)
 
         self.main_q.to(device)
@@ -171,7 +173,9 @@ class Deep_RL_Agent:
             next_state: Next state
             terminated: Whether episode terminated
         """
-        self.replay_buffer.append((state, action, reward, next_state, terminated))
+        state_uint8 = (state * 255).astype(np.uint8)
+        next_state_uint8 = (next_state * 255).astype(np.uint8)
+        self.replay_buffer.append((state_uint8, action, reward, next_state_uint8, terminated))
 
         if len(self.replay_buffer) < self.batch_size:
             return
@@ -182,10 +186,10 @@ class Deep_RL_Agent:
         states = np.stack([np.array(s) for s in states])
         next_states = np.stack([np.array(s) for s in next_states])
 
-        states = torch.tensor(np.array(states), dtype=torch.float).to(device)
+        states = torch.tensor(np.array(states), dtype=torch.float32).to(device) / 255.0
         actions = torch.tensor(np.array(actions), dtype=torch.long).unsqueeze(1).to(device)
         rewards = torch.tensor(np.array(rewards), dtype=torch.float).unsqueeze(1).to(device)
-        next_states = torch.tensor(np.array(next_states), dtype=torch.float).to(device)
+        next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(device) / 255.0
         terminations = torch.tensor(np.array(dones), dtype=torch.int).unsqueeze(1).to(device)
 
         # TODO: Implement DQN update step
@@ -210,12 +214,16 @@ class Deep_RL_Agent:
         self.epsilon = max(self.epsilon_min, self.epsilon_decay * self.epsilon)
 
 
-    @staticmethod
-    def wrap_env(env):
+    def wrap_env(self, env):
         """
         The Agent-Environment Contract: 
         Applies all necessary transformations for this specific agent.
         """
+
+        if self.verbose:
+            print("Debug Observation Wrapper Enabled: Original observations will be printed to console.")
+            env = DebugObservation(env)
+
         # 1. Custom Preprocessing (Grayscale + Resize to 84x84)
         env = MarioResize(env)
 
@@ -231,6 +239,11 @@ class Deep_RL_Agent:
         # 4. Discrete Action Wrapper
         action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
         env = DiscreteActionWrapper(env, action_map=action_map)
+
+        # 5. (Optional) Reward Shaping or Custom Wrappers could be added here
+        env = EarlyTermination(env)
+
+        env = CompleteLapReward(env)
         
         return env
     

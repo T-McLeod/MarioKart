@@ -82,16 +82,14 @@ function getSpeedReward()
 
 
 
-	if isTurnedAround() then
-		reward = -0.1 --not sure if should keep
-	elseif speed > 900 then
-		reward=0.2
+	if speed > 900 then
+		reward=0.03
 	elseif speed > 800 then
-		reward=0.1
+		reward=0.02
 	elseif speed >600 then
-		reward = 0
+		reward = 0.01
 	else
-		reward= -0.1
+		reward= 0
 	end
 
 	
@@ -122,8 +120,8 @@ function getSpeedRewardLess()
 end
 
 function getRewardTrainSpeed()
-	-- 0.2 top speed, 1 passing checkpoint
-	return getSpeedReward() + getCheckpointReward() + getExperimentalReward()
+	-- 0.2 top speed, 1 passing checkpoint, -0.1 for bleed penalty
+	return getSpeedReward() + getCheckpointReward() - 0.01
 
 end
 
@@ -136,15 +134,26 @@ end
 function getRewardTrain()
 	-- 1 passing checkpoint
 	return getCheckpointReward() + getExperimentalReward()
-
 end
 
 function isDoneTrain()
 
-	return isDone() or isHittingWall()
+	return isDone()
 
 end
 
+max_checkpoint = -1
+function isProgressMade()
+
+	local checkpoint = getCheckpoint()
+
+	if checkpoint > max_checkpoint then
+		max_checkpoint = checkpoint
+		return true
+	end
+
+	return false
+end
 
 function getExperimentalReward()
 	
@@ -161,7 +170,6 @@ function getExperimentalReward()
 
 	return reward
 end
-
 
 wall_hits=0
 wall_steps=0
