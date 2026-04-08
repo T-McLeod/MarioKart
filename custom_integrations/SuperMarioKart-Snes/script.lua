@@ -82,16 +82,14 @@ function getSpeedReward()
 
 
 
-	if isTurnedAround() then
-		reward = -0.1 --not sure if should keep
-	elseif speed > 900 then
-		reward=0.2
+	if speed > 900 then
+		reward=0.03
 	elseif speed > 800 then
-		reward=0.1
+		reward=0.02
 	elseif speed >600 then
-		reward = 0
+		reward = 0.01
 	else
-		reward= -0.1
+		reward= 0
 	end
 
 	
@@ -123,7 +121,7 @@ end
 
 function getRewardTrainSpeed()
 	-- 0.2 top speed, 1 passing checkpoint
-	return getSpeedReward() + getCheckpointReward() + getExperimentalReward()
+	return getSpeedReward() + getCheckpointReward()
 
 end
 
@@ -140,7 +138,7 @@ end
 
 function isDoneTrain()
 
-	return isDone() or isStuck() or not isMakingProgress()
+	return isDone()
 
 end
 
@@ -157,22 +155,6 @@ function isProgressMade()
 	return false
 end
 
-consecutive_no_progress_frames = 0
-making_progress = true
-function isMakingProgress()
-	if isProgressMade() then
-		consecutive_no_progress_frames = 0
-	else
-		consecutive_no_progress_frames = consecutive_no_progress_frames + 1
-	end
-
-	if consecutive_no_progress_frames >= 1000 then
-		consecutive_no_progress_frames = 0
-		return false
-	end
-	return true
-end
-
 function getExperimentalReward()
 	
 	local reward = 0
@@ -185,31 +167,8 @@ function getExperimentalReward()
 		-- feel of, or deep dived
 		reward=-1 
 	end
-	if isStuck() then
-		reward = reward - 200
-	elseif not isMakingProgress() then
-		reward = reward - 10
-	end
 
 	return reward
-end
-
-consecutive_stuck_frames = 0
-is_stuck = false
-function isStuck()
-	if data.kart1_speed <= 20 and data.kart1_speed >= -20 then
-		-- hit a wall, or fells off (40,32) 
-		consecutive_stuck_frames = consecutive_stuck_frames + 1
-	else
-		consecutive_stuck_frames = 0
-	end
-
-	if consecutive_stuck_frames >= 300 then
-		consecutive_stuck_frames = 0
-		return true
-	end
-
-	return false
 end
 
 wall_hits=0

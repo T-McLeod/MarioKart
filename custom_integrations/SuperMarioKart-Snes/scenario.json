@@ -3,7 +3,7 @@
     "script": "lua:isDoneTrain"
   },
   "reward":{
-    "script": "lua:getRewardTrain"
+    "script": "lua:getRewardTrainSpeed"
   },
   "scripts": [
     "script.lua"

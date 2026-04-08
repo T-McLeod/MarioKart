@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv
+from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, CompleteLapReward
 import pickle
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
@@ -136,7 +136,7 @@ class Deep_RL_Agent:
         self.target_q = NeuralNet(self.action_space_size)
         self.target_q.load_state_dict(self.main_q.state_dict())
 
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()
         self.optimizer = torch.optim.SGD(self.main_q.parameters(), lr=learning_rate)
 
         self.main_q.to(device)
@@ -239,6 +239,11 @@ class Deep_RL_Agent:
         # 4. Discrete Action Wrapper
         action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
         env = DiscreteActionWrapper(env, action_map=action_map)
+
+        # 5. (Optional) Reward Shaping or Custom Wrappers could be added here
+        env = EarlyTermination(env)
+
+        env = CompleteLapReward(env)
         
         return env
     
