@@ -186,7 +186,7 @@ function getExperimentalReward()
 		reward=-1 
 	end
 	if isStuck() then
-		reward = reward - 10
+		reward = reward - 200
 	elseif not isMakingProgress() then
 		reward = reward - 10
 	end
@@ -197,7 +197,7 @@ end
 consecutive_stuck_frames = 0
 is_stuck = false
 function isStuck()
-	if data.kart1_speed <= 20 then
+	if data.kart1_speed <= 20 and data.kart1_speed >= -20 then
 		-- hit a wall, or fells off (40,32) 
 		consecutive_stuck_frames = consecutive_stuck_frames + 1
 	else
