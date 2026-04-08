@@ -103,7 +103,7 @@ class EarlyTermination(gym.Wrapper):
     """
     Terminates the episode early if the agent is stuck or not making progress.
     """
-    def __init__(self, env, max_no_progress_steps=300):
+    def __init__(self, env, max_no_progress_steps=150):
         super().__init__(env)
         self.frames_without_progress = 0
         self.max_frames_without_progress = max_no_progress_steps
@@ -117,13 +117,12 @@ class EarlyTermination(gym.Wrapper):
         if checkpoint <= self.max_checkpoint:
             self.frames_without_progress += 1
         else:
-            reward += (checkpoint - self.max_checkpoint) * 10
             self.max_checkpoint = checkpoint
             self.frames_without_progress = 0
 
         if self.frames_without_progress >= self.max_frames_without_progress:
             terminated = True  # End the episode early
-            reward = -10  # Optional: Penalize for being stuck
+            reward -= 50  # Optional: Penalize for being stuck
 
             self.frames_without_progress = 0  # Reset counter for next episode
             self.max_checkpoint = 0  # Reset checkpoint for next episode
