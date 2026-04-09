@@ -18,7 +18,29 @@ git clone https://github.com/T-McLeod/MarioKart.git
 cd MarioKart
 ```
 
-### 2. Create a virtual environment (recommended)
+### 2. Obtain the ROM
+
+The Super Mario Kart (USA) ROM is **not included** in this repository for copyright reasons. You need to supply it yourself.
+
+**Source used in development:**  
+`Super_Mario_Kart_(USA).sfc` — available at [archive.org/details/super-mario-kart-usa_202303](https://archive.org/details/super-mario-kart-usa_202303)
+
+Once you have the file, place it at:
+```
+custom_integrations/SuperMarioKart-Snes/rom.sfc
+```
+
+**Verify the SHA-1 hash matches exactly** (stable-retro will reject a wrong ROM):
+```bash
+sha1sum custom_integrations/SuperMarioKart-Snes/rom.sfc
+# Expected: 47e103d8398cf5b7cbb42b95df3a3c270691163b
+cat custom_integrations/SuperMarioKart-Snes/rom.sha   # same hash stored here
+```
+
+If the hashes don't match, the environment will raise a `RomNotFoundError` or silently produce garbage observations. Only the exact USA (NTSC) version of the ROM is compatible with the memory addresses in `data.json` and `script.lua`.
+
+### 3. Create a virtual environment (recommended)
+
 
 ```bash
 python3 -m venv venv
@@ -26,7 +48,7 @@ source venv/bin/activate        # macOS / Linux
 # venv\Scripts\activate          # Windows
 ```
 
-### 3. Install PyTorch
+### 4. Install PyTorch
 
 **CPU / Apple MPS (local development):**
 ```bash
@@ -43,13 +65,13 @@ Verify your installation:
 python3 -c "import torch; print('CUDA:', torch.cuda.is_available(), '| MPS:', torch.backends.mps.is_available())"
 ```
 
-### 4. Install all other dependencies
+### 5. Install all other dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Verify stable-retro and the custom integration
+### 6. Verify stable-retro and the custom integration
 
 The Super Mario Kart ROM and integration files are already bundled in
 `custom_integrations/SuperMarioKart-Snes/`. Both `train.py` and `evaluate.py`
@@ -71,7 +93,7 @@ env.close()
 
 Expected output: `Environment OK — obs shape: (224, 256, 3)`
 
-### 6. (Optional) Configure via `.env` file
+### 7. (Optional) Configure via `.env` file
 
 Create a `.env` file in the project root to override defaults:
 
@@ -84,12 +106,33 @@ MK_PRINT_EVERY=10
 ```
 
 Available states (from `custom_integrations/SuperMarioKart-Snes/`):
-`MarioCircuit_M`, `MarioCircuit2_M`, `MarioCircuit3_M`, `MarioCircuit4_M`,
-`MarioCircuit_M_50cc`, `MarioCircuit_B`, `DonutPlains_M`, `DonutPlains2_M`,
-`GhostValley_M`, `GhostValley2_M`, `GhostValley3_M`, `KoopaBeach_M`,
-`KoopaBeach2_M`, `ChocoIsland_M`, `ChocoIsland2_M`, `VanillaLake_M`,
-`VanillaLake2_M`, `BowserCastle_M`, `BowserCastle2_M`, `BowserCastle3_M`,
-`RainbowRoad_M`
+
+| State name | Track |
+|------------|-------|
+| `MarioCircuit_M` | Mario Circuit 1 — Mushroom Cup (default) |
+| `MarioCircuit_M_50cc` | Mario Circuit 1 — 50cc |
+| `MarioCircuit_B` | Mario Circuit 1 — Battle mode |
+| `MarioCircuit2_M` | Mario Circuit 2 |
+| `MarioCircuit3_M` | Mario Circuit 3 |
+| `MarioCircuit4_M` | Mario Circuit 4 |
+| `DonutPlains_M` | Donut Plains 1 |
+| `DonutPlains2_M` | Donut Plains 2 |
+| `DonutPlains3_M` | Donut Plains 3 |
+| `GhostValley_M` | Ghost Valley 1 |
+| `GhostValley2_M` | Ghost Valley 2 |
+| `GhostValley3_M` | Ghost Valley 3 |
+| `KoopaBeach_M` | Koopa Beach 1 |
+| `KoopaBeach2_M` | Koopa Beach 2 |
+| `ChocoIsland_M` | Choco Island 1 |
+| `ChocoIsland2_M` | Choco Island 2 |
+| `ChocoIsland` | Choco Island (alt save) |
+| `VanillaLake_M` | Vanilla Lake 1 |
+| `VanillaLake2_M` | Vanilla Lake 2 |
+| `BowserCastle_M` | Bowser Castle 1 |
+| `BowserCastle2_M` | Bowser Castle 2 |
+| `BowserCastle3_M` | Bowser Castle 3 |
+| `RainbowRoad_M` | Rainbow Road — Mario |
+| `RainbowRoad_DK` | Rainbow Road — Donkey Kong Jr. |
 
 ---
 

@@ -2,6 +2,11 @@
 
 ## External Code and Resources
 
+### Super Mario Kart ROM
+- **Source:** `Super_Mario_Kart_(USA).sfc` obtained from [archive.org/details/super-mario-kart-usa_202303](https://archive.org/details/super-mario-kart-usa_202303)
+- **SHA-1:** `47e103d8398cf5b7cbb42b95df3a3c270691163b` — matches `custom_integrations/SuperMarioKart-Snes/rom.sha` exactly
+- **Note:** The ROM itself is not redistributed in this repository. The `.gitignore` excludes `rom.sfc`. Users must supply their own copy. The SHA is stored in `rom.sha` so the integration can verify the correct version is present before training begins.
+
 ### stable-retro Game Integration
 - **Source:** Adapted from [esteveste/gym-SuperMarioKart-Snes](https://github.com/esteveste/gym-SuperMarioKart-Snes)
 - **Used:** `custom_integrations/SuperMarioKart-Snes/` — ROM integration files,
