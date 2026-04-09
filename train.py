@@ -31,9 +31,6 @@ import config as cfg
 
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CUSTOM_INTEGRATIONS = os.path.join(SCRIPT_DIR, "custom_integrations")
-
-stable_retro.data.Integrations.add_custom_path(CUSTOM_INTEGRATIONS)
 
 
 def make_env(render_mode=None):
