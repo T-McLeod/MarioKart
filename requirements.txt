@@ -1,7 +1,7 @@
 # Top-Level RL & Env Packages
 gymnasium
 stable-retro
-stable_baselines3
+stable_baselines3[extra]
 
 # Computer Vision & Math
 opencv-python
@@ -11,7 +11,11 @@ numpy
 tensorboard
 matplotlib
 pandas
+tabulate   # for markdown tables in ablation study
 
 # Deep Learning
-# Note: Removed local NVIDIA/CUDA bindings to let the cluster use its own
+# Note: Remove local NVIDIA/CUDA bindings to let the cluster use its own drivers.
+# For local CPU/MPS: pip install torch torchvision
+# For cluster CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 torch
+torchvision

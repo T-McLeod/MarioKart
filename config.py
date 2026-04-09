@@ -33,8 +33,10 @@ def _get_int(key: str, default: int) -> int:
 		return default
 
 
-# Retro state name from the imported Super Mario Kart integration.
-state = _get("MK_STATE", "Level1")
+# Retro state name — must match one of the .state files in custom_integrations.
+# Available states: MarioCircuit_M, MarioCircuit2_M, MarioCircuit3_M, MarioCircuit4_M,
+#   MarioCircuit_M_50cc, MarioCircuit_B, DonutPlains_M, GhostValley_M, etc.
+state = _get("MK_STATE", "MarioCircuit_M")
 
 # None runs headless. Use "human" to render gameplay.
 _render_mode = str(_get("MK_RENDER_MODE", "none")).strip().lower()
