@@ -248,10 +248,13 @@ class Deep_RL_Agent:
     
 
     def save_checkpoint(self, filepath, episode):
-        """Saves the entire training state for a seamless resume."""
+        """Saves model weights only — replay buffer excluded to save storage.
+
+        The buffer rebuilds within ~500 episodes on resume, with minimal
+        impact since epsilon is low by that point and the agent is mostly
+        exploiting. Each checkpoint is ~14 MB instead of ~2.8 GB.
+        """
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
-        # 1. Save PyTorch State (Main Network, Target Network, Optimizer)
         checkpoint = {
             'episode': episode,
             'epsilon': self.epsilon,
@@ -261,13 +264,8 @@ class Deep_RL_Agent:
             'scheduler_state': self.scheduler.state_dict(),
         }
         torch.save(checkpoint, f"{filepath}_model.pth")
-
-        # 2. Save the Replay Buffer
-        # Note: 'wb' means write-binary
-        with open(f"{filepath}_buffer.pkl", 'wb') as f:
-            pickle.dump(self.replay_buffer, f)
-            
-        print(f"Checkpoint successfully saved at Episode {episode}.")
+        size_mb = os.path.getsize(f"{filepath}_model.pth") / 1e6
+        print(f"Checkpoint saved at Episode {episode} ({size_mb:.1f} MB).")
 
     def load_checkpoint(self, filepath):
         """Loads the training state. Returns the episode to resume from."""
