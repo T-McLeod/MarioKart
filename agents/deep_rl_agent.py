@@ -59,26 +59,14 @@ DISCOVERY_ACTIONS = [
 
 class NeuralNet(torch.nn.Module):
     """
-    CNN Q-function approximator for DQN.
-
-    Architecture (matches DeepMind Atari DQN — Mnih et al. 2015):
-      Conv(8×8, stride 4) → ReLU → BN
-      Conv(4×4, stride 2) → ReLU → BN
-      Conv(3×3, stride 1) → ReLU
-      Flatten → FC(256) → ReLU → FC(n_actions)
-
-    Input:  (batch, 4, 84, 84) — 4 stacked grayscale frames, normalised [0,1]
-    Output: (batch, n_actions) — Q-value estimate per discrete action
-
-    Batch normalisation after conv layers stabilises training and reduces
-    sensitivity to learning rate (see ablation: without BN, we needed lr < 1e-4).
+    Implements a neural network representation of
+    the Q-function for use in DQN.
     """
     def __init__(self, output_size):
         super(NeuralNet, self).__init__()
+        # TODO: Implement constructor/initialization
         self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
-        self.bn1   = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self.bn2   = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
 
         self.fc1 = nn.Linear(64 * 7 * 7, 256)
@@ -86,13 +74,24 @@ class NeuralNet(torch.nn.Module):
         self.relu = nn.ReLU()
         self.flatten = nn.Flatten()
 
+
     def forward(self, x):
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.relu(self.bn2(self.conv2(x)))
-        x = self.relu(self.conv3(x))
+        """
+        Input should represent state/observation space encoding
+        Output should be a q-function estimate for each possible
+        discrete action.
+        """
+        # TODO: Implement forward propagation
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.conv3(x)
+        x = self.relu(x)
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
-        return self.fc2(x)
+        x = self.fc2(x)
+        return x
     
 
 class Deep_RL_Agent:
@@ -135,15 +134,8 @@ class Deep_RL_Agent:
         self.target_q = NeuralNet(self.action_space_size)
         self.target_q.load_state_dict(self.main_q.state_dict())
 
-        # Huber loss is more robust to outlier Q-value targets than MSE
-        self.loss_fn = nn.SmoothL1Loss()
-        # Adam: adaptive learning rates converge ~2.5× faster than SGD here
-        # (see evaluation_results/ablation_study.md — SGD ablation config)
-        self.optimizer = torch.optim.Adam(self.main_q.parameters(), lr=learning_rate)
-        # Cosine annealing LR schedule: smoothly decays lr over training
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, T_max=200_000, eta_min=1e-5
-        )
+        self.loss_fn = nn.MSELoss()
+        self.optimizer = torch.optim.SGD(self.main_q.parameters(), lr=learning_rate)
 
         self.main_q.to(device)
         self.target_q.to(device)
@@ -159,8 +151,7 @@ class Deep_RL_Agent:
         Returns:
             action: Integer action (0-3)
         """
-        # Epsilon-greedy: exploit with probability (1 - epsilon), explore otherwise
-        if random() > self.epsilon:
+        if random() <= 1 - self.epsilon:
           state = torch.tensor(state).unsqueeze(0).to(device)
           action_int = torch.argmax(self.main_q(state)).item()
         else:
@@ -208,11 +199,8 @@ class Deep_RL_Agent:
 
         loss = self.loss_fn(current_q, target_q)
         loss.backward()
-        # Gradient clipping: prevents exploding gradients from large TD errors
-        torch.nn.utils.clip_grad_norm_(self.main_q.parameters(), max_norm=10.0)
         self.optimizer.step()
         self.optimizer.zero_grad()
-        self.scheduler.step()
 
         self.steps += 1
 
@@ -256,9 +244,8 @@ class Deep_RL_Agent:
             'episode': episode,
             'epsilon': self.epsilon,
             'main_q_state': self.main_q.state_dict(),
-            'target_q_state': self.target_q.state_dict(),
-            'optimizer_state': self.optimizer.state_dict(),
-            'scheduler_state': self.scheduler.state_dict(),
+            'target_q_state': self.target_q.state_dict(), # Keeps the target stable on resume
+            'optimizer_state': self.optimizer.state_dict() # Critical for Adam momentum
         }
         torch.save(checkpoint, f"{filepath}_model.pth")
 
@@ -285,8 +272,6 @@ class Deep_RL_Agent:
         self.main_q.load_state_dict(checkpoint['main_q_state'])
         self.target_q.load_state_dict(checkpoint['target_q_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state'])
-        if 'scheduler_state' in checkpoint:
-            self.scheduler.load_state_dict(checkpoint['scheduler_state'])
         self.epsilon = checkpoint['epsilon']
         resume_episode = checkpoint['episode']
 
