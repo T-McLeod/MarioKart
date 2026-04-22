@@ -1,6 +1,7 @@
 import stable_retro
 from agents.random_agent import MarioKartRandomAgent
 from agents.deep_rl_agent import Deep_RL_Agent
+from agents.ppo_agent import PPO_Agent
 import config as cfg
 import numpy as np
 import os
