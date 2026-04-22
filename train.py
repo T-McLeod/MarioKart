@@ -23,7 +23,7 @@ def main():
         render_mode=cfg.render_mode,
         inttype=stable_retro.data.Integrations.ALL
     )
-    agent = Deep_RL_Agent(
+    """agent = Deep_RL_Agent(
         env,
         discount=0.99,
         learning_rate=0.00025,
@@ -33,6 +33,19 @@ def main():
         epsilon_start=1.0,
         epsilon_min=0.01,
         epsilon_decay=0.99999
+    )"""
+
+    agent = PPO_Agent(
+        env,
+        learning_rate=2.5e-4,
+        rollout_steps=512,
+        minibatch_size=64,
+        n_epochs=10,
+        clip_coef=0.2,
+        vf_coef=0.5,
+        ent_coef=0.01,
+        gae_lambda=0.95,
+        max_grad_norm=0.5
     )
     start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
     env = agent.wrap_env(env)
