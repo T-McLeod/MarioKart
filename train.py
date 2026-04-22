@@ -5,11 +5,36 @@ from agents.ppo_agent import PPO_Agent
 import config as cfg
 import numpy as np
 import os
+import matplotlib
+matplotlib.use("Agg")  # headless backend — no display needed on the cluster
+import matplotlib.pyplot as plt
 from wrapper import MarioResize, MarioToPyTorch
 
 
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def plot_and_save(plot_episodes, avg_returns, avg_lengths, out_dir="plots"):
+    """Save a two-panel training curve PNG every time it's called."""
+    os.makedirs(out_dir, exist_ok=True)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+
+    ax1.plot(plot_episodes, avg_returns, color="steelblue", linewidth=1.5)
+    ax1.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+    ax1.set_ylabel("Avg Return")
+    ax1.set_title("PPO Training Curve — Super Mario Kart")
+    ax1.grid(True, alpha=0.3)
+
+    ax2.plot(plot_episodes, avg_lengths, color="darkorange", linewidth=1.5)
+    ax2.set_xlabel("Episode")
+    ax2.set_ylabel("Avg Episode Length")
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    fig.savefig(os.path.join(out_dir, "training_curve.png"), dpi=120)
+    plt.close(fig)
 
 
 def main():
@@ -38,7 +63,7 @@ def main():
     agent = PPO_Agent(
         env,
         learning_rate=2.5e-4,
-        rollout_steps=512,
+        rollout_steps=128,
         minibatch_size=64,
         n_epochs=10,
         clip_coef=0.2,
@@ -52,6 +77,10 @@ def main():
 
     episode_returns = []
     episode_lengths = []
+    # Tracking lists for the live training curve (one point per print_every block)
+    plot_episodes = []
+    plot_avg_returns = []
+    plot_avg_lengths = []
     # Training Loop
     print(f"Starting training from Episode {start_episode} to Episode {cfg.n_episodes}...")
     for episode in range(start_episode, cfg.n_episodes):
@@ -81,6 +110,12 @@ def main():
             print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
             print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
             #print(f"    Epsilon: {agent.epsilon:.4f}")
+
+            # Record and redraw the training curve
+            plot_episodes.append(episode + 1)
+            plot_avg_returns.append(avg_return)
+            plot_avg_lengths.append(avg_length)
+            plot_and_save(plot_episodes, plot_avg_returns, plot_avg_lengths)
 
         if episode % 500 == 0 and episode > 0:
             print(f"Saving checkpoint at episode {episode}...")
