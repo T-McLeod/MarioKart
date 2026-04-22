@@ -103,11 +103,19 @@ class EarlyTermination(gym.Wrapper):
     """
     Terminates the episode early if the agent is stuck or not making progress.
     """
-    def __init__(self, env, max_no_progress_steps=150):
+    def __init__(self, env, max_no_progress_steps=300):
         super().__init__(env)
         self.frames_without_progress = 0
         self.max_frames_without_progress = max_no_progress_steps
         self.max_checkpoint = 0
+
+    def reset(self, **kwargs):
+        # 1. Reset internal variables EXACTLY when the environment resets
+        self.frames_without_progress = 0
+        self.max_checkpoint = 0
+        
+        return self.env.reset(**kwargs)
+
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
@@ -124,9 +132,6 @@ class EarlyTermination(gym.Wrapper):
             terminated = True  # End the episode early
             reward -= 50  # Optional: Penalize for being stuck
 
-            self.frames_without_progress = 0  # Reset counter for next episode
-            self.max_checkpoint = 0  # Reset checkpoint for next episode
-
         return obs, reward, terminated, truncated, info
     
 
@@ -140,15 +145,21 @@ class CompleteLapReward(gym.Wrapper):
         self.current_lap = 0
         self.lap_reward = lap_reward
 
+
+    def reset(self, **kwargs):
+        self.current_lap = 0
+        return self.env.reset(**kwargs)
+
+
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         checkpoint = get_checkpoint(info)
         
         lap = info.get("lap", 128) - 128
-        if lap > self.current_lap:
-            reward += self.lap_reward
+        lap = max(0, lap)
+        reward += self.lap_reward * (lap - self.current_lap)  # Reward for completing a lap
         
-        self.current_lap = max(0, lap)
+        self.current_lap = lap
         
 
         return obs, reward, terminated, truncated, info
