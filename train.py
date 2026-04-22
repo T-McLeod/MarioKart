@@ -80,7 +80,7 @@ def main():
             print(f"Episode {episode + 1}/{cfg.n_episodes} completed.")
             print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
             print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
-            print(f"    Epsilon: {agent.epsilon:.4f}")
+            #print(f"    Epsilon: {agent.epsilon:.4f}")
 
         if episode % 500 == 0 and episode > 0:
             print(f"Saving checkpoint at episode {episode}...")
