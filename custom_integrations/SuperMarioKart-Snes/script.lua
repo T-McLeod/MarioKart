@@ -121,7 +121,7 @@ end
 
 function getRewardTrainSpeed()
 	-- 0.2 top speed, 1 passing checkpoint, -0.1 for bleed penalty
-	return getSpeedReward() + getCheckpointReward() - 0.01
+	return getSpeedReward() + getCheckpointReward() - 0.05
 
 end
 
