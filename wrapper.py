@@ -102,26 +102,30 @@ class MaxAndSkipEnv(gym.Wrapper):
 class EarlyTermination(gym.Wrapper):
     """
     Terminates the episode early if the agent is stuck or not making progress.
+
+    Args:
+        max_no_progress_steps: Frames allowed without checkpoint progress before termination.
+            DQN default: 300. PPO recommended: 600 (more patient during early exploration).
+        stuck_penalty: Reward penalty applied on termination.
+            DQN default: -50. PPO recommended: -5 (avoids reward collapse / policy fixation).
     """
-    def __init__(self, env, max_no_progress_steps=300):
+    def __init__(self, env, max_no_progress_steps=300, stuck_penalty=-50):
         super().__init__(env)
         self.frames_without_progress = 0
         self.max_frames_without_progress = max_no_progress_steps
+        self.stuck_penalty = stuck_penalty
         self.max_checkpoint = 0
 
     def reset(self, **kwargs):
-        # 1. Reset internal variables EXACTLY when the environment resets
+        # Reset internal variables EXACTLY when the environment resets
         self.frames_without_progress = 0
         self.max_checkpoint = 0
-        
         return self.env.reset(**kwargs)
-
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         checkpoint = get_checkpoint(info)
-        
-        # Check for early termination conditions
+
         if checkpoint <= self.max_checkpoint:
             self.frames_without_progress += 1
         else:
@@ -129,11 +133,37 @@ class EarlyTermination(gym.Wrapper):
             self.frames_without_progress = 0
 
         if self.frames_without_progress >= self.max_frames_without_progress:
-            terminated = True  # End the episode early
-            reward -= 50  # Optional: Penalize for being stuck
+            terminated = True
+            reward += self.stuck_penalty
 
         return obs, reward, terminated, truncated, info
     
+
+class SpeedReward(gym.Wrapper):
+    """
+    Adds a small per-step reward proportional to the kart's current speed.
+    This gives PPO an immediate positive gradient to learn "go fast" before
+    it ever reaches a checkpoint, preventing early exploration collapse.
+
+    Intentionally NOT used by the DQN agent so the two agents stay comparable.
+
+    Args:
+        scale: Multiplier applied to the raw speed value (default 0.01 keeps
+               the bonus small relative to checkpoint/lap rewards).
+    """
+    def __init__(self, env, scale=0.01):
+        super().__init__(env)
+        self.scale = scale
+
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        speed = info.get("kart1_speed", 0)
+        reward += speed * self.scale
+        return obs, reward, terminated, truncated, info
+
 
 class CompleteLapReward(gym.Wrapper):
     """

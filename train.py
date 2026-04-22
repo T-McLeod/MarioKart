@@ -68,9 +68,12 @@ def main():
         n_epochs=10,
         clip_coef=0.2,
         vf_coef=0.5,
-        ent_coef=0.01,
+        ent_coef_start=0.05,   # high entropy early → forces exploration
+        ent_coef_end=0.001,    # decays toward exploitation as training matures
         gae_lambda=0.95,
-        max_grad_norm=0.5
+        max_grad_norm=0.5,
+        total_timesteps=cfg.n_episodes * cfg.max_timesteps,  # rough upper bound for scheduling
+        no_improve_tolerance=50,  # stop if no improvement for 50 print intervals
     )
     start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
     env = agent.wrap_env(env)
@@ -109,13 +112,21 @@ def main():
             print(f"Episode {episode + 1}/{cfg.n_episodes} completed.")
             print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
             print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
-            #print(f"    Epsilon: {agent.epsilon:.4f}")
+            print(f"    Total steps: {agent.steps}")
 
             # Record and redraw the training curve
             plot_episodes.append(episode + 1)
             plot_avg_returns.append(avg_return)
             plot_avg_lengths.append(avg_length)
             plot_and_save(plot_episodes, plot_avg_returns, plot_avg_lengths)
+
+            # Early stopping — PPO only
+            if isinstance(agent, PPO_Agent):
+                agent.record_return(avg_return)
+                if agent.should_stop:
+                    print("Stopping training early.")
+                    agent.save_checkpoint(checkpoint_prefix + f"_early_stop", episode)
+                    break
 
         if episode % 500 == 0 and episode > 0:
             print(f"Saving checkpoint at episode {episode}...")

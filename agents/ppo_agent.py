@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 import numpy as np
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, CompleteLapReward
+from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, SpeedReward, CompleteLapReward
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)
 if torch.cuda.is_available():
@@ -99,9 +99,10 @@ class PPO_Agent:
     the clipped surrogate objective.
     """
     def __init__(self, env, discount=0.99, learning_rate=2.5e-4,
-                 rollout_steps=512, minibatch_size=64, n_epochs=10,
-                 clip_coef=0.2, vf_coef=0.5, ent_coef=0.01,
-                 gae_lambda=0.95, max_grad_norm=0.5,
+                 rollout_steps=128, minibatch_size=64, n_epochs=10,
+                 clip_coef=0.2, vf_coef=0.5, ent_coef_start=0.05, ent_coef_end=0.001,
+                 gae_lambda=0.95, max_grad_norm=0.5, total_timesteps=2_000_000,
+                 no_improve_tolerance=50,
                  verbose=False):
         """
         Initialize the PPO agent.
@@ -114,9 +115,13 @@ class PPO_Agent:
             n_epochs: Number of gradient update passes per rollout
             clip_coef: PPO clipping epsilon for the surrogate objective
             vf_coef: Value function loss coefficient
-            ent_coef: Entropy bonus coefficient (encourages exploration)
+            ent_coef_start: Entropy bonus at the start of training (high = more exploration)
+            ent_coef_end: Entropy bonus at the end of training (low = more exploitation)
             gae_lambda: Lambda for Generalized Advantage Estimation
             max_grad_norm: Max gradient norm for clipping
+            total_timesteps: Expected total env steps — used to schedule entropy and LR decay
+            no_improve_tolerance: Stop training if avg return hasn't improved for this
+                                  many print_every intervals (checked externally via should_stop)
         """
         self.env = env
         self.discount = discount
@@ -125,11 +130,20 @@ class PPO_Agent:
         self.n_epochs = n_epochs
         self.clip_coef = clip_coef
         self.vf_coef = vf_coef
-        self.ent_coef = ent_coef
+        self.ent_coef_start = ent_coef_start
+        self.ent_coef_end = ent_coef_end
+        self.initial_lr = learning_rate
         self.gae_lambda = gae_lambda
         self.max_grad_norm = max_grad_norm
+        self.total_timesteps = total_timesteps
         self.verbose = verbose
         self.steps = 0
+
+        # Early stopping state
+        self.no_improve_tolerance = no_improve_tolerance
+        self.best_avg_return = float("-inf")
+        self.intervals_without_improvement = 0
+        self.should_stop = False
 
         self.action_space = env.action_space
         self.num_actions = len(SIMPLE_ACTIONS)
@@ -152,6 +166,22 @@ class PPO_Agent:
         self._rb_rewards = []
         self._rb_values = []
         self._rb_dones = []
+
+    def record_return(self, avg_return):
+        """
+        Call this at every print_every interval with the latest avg return.
+        Sets self.should_stop = True if no improvement for no_improve_tolerance intervals.
+        """
+        if avg_return > self.best_avg_return + 1.0:  # 1.0 = minimum meaningful improvement
+            self.best_avg_return = avg_return
+            self.intervals_without_improvement = 0
+        else:
+            self.intervals_without_improvement += 1
+
+        if self.intervals_without_improvement >= self.no_improve_tolerance:
+            print(f"Early stopping: no improvement for {self.no_improve_tolerance} intervals. "
+                  f"Best avg return: {self.best_avg_return:.2f}")
+            self.should_stop = True
 
     def action_select(self, state):
         """
@@ -199,6 +229,18 @@ class PPO_Agent:
 
     def _ppo_update(self, last_next_state, last_done):
         """Compute GAE advantages over the rollout and run PPO update epochs."""
+
+        # --- Scheduled hyperparameters ---
+        # Linear decay from ent_coef_start → ent_coef_end over total_timesteps
+        progress = min(self.steps / self.total_timesteps, 1.0)
+        ent_coef = self.ent_coef_start + progress * (self.ent_coef_end - self.ent_coef_start)
+
+        # Linear LR decay (standard PPO practice)
+        lr = self.initial_lr * (1.0 - progress)
+        lr = max(lr, 1e-6)  # floor to avoid going to zero
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = lr
+
         # Bootstrap the value of the state after the final rollout step
         with torch.no_grad():
             last_state_t = torch.tensor(last_next_state, dtype=torch.float32).unsqueeze(0).to(device)
@@ -264,7 +306,7 @@ class PPO_Agent:
                 # Entropy bonus (negative because we maximise entropy)
                 entropy_loss = -entropy.mean()
 
-                loss = pg_loss + self.vf_coef * v_loss + self.ent_coef * entropy_loss
+                loss = pg_loss + self.vf_coef * v_loss + ent_coef * entropy_loss
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -275,6 +317,14 @@ class PPO_Agent:
         """
         The Agent-Environment Contract:
         Applies all necessary transformations for this specific agent.
+
+        PPO-specific reward shaping vs DQN:
+        - EarlyTermination uses longer patience (600 vs 300) and a smaller
+          stuck penalty (-5 vs -50) to prevent policy collapse during early exploration.
+        - SpeedReward adds a small per-step bonus (scale=0.0005) calibrated so
+          that one checkpoint crossing (+10) is always worth more than any single
+          step of max speed (~1.0), keeping track navigation as the primary signal
+          while still rewarding the agent for going fast.
         """
         if self.verbose:
             print("Debug Observation Wrapper Enabled: Original observations will be printed to console.")
@@ -296,8 +346,14 @@ class PPO_Agent:
         action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
         env = DiscreteActionWrapper(env, action_map=action_map)
 
-        # 6. Reward Shaping
-        env = EarlyTermination(env)
+        # 6. Reward Shaping — PPO-tuned parameters
+        # SpeedReward scale is calibrated against the checkpoint reward:
+        # each checkpoint crossing = +10 (from Lua script).
+        # kart1_speed is a raw int typically 0-2000, so scale=0.0005 gives
+        # max ~1.0/step — meaningful encouragement to stay fast without
+        # drowning out the checkpoint signal that teaches track navigation.
+        env = EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5)
+        env = SpeedReward(env, scale=0.0005)
         env = CompleteLapReward(env)
 
         return env
