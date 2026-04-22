@@ -83,11 +83,11 @@ function getSpeedReward()
 
 
 	if speed > 900 then
-		reward=0.03
-	elseif speed > 800 then
-		reward=0.02
-	elseif speed >600 then
-		reward = 0.01
+		reward=0.3
+	elseif speed > 700 then
+		reward=0.2
+	elseif speed >400 then
+		reward = 0.1
 	else
 		reward= 0
 	end
@@ -121,7 +121,7 @@ end
 
 function getRewardTrainSpeed()
 	-- 0.2 top speed, 1 passing checkpoint, -0.1 for bleed penalty
-	return getSpeedReward() + getCheckpointReward() - 0.01
+	return getSpeedReward() + getCheckpointReward() - 0.05
 
 end
 
