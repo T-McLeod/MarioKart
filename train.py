@@ -63,8 +63,8 @@ def main():
     agent = PPO_Agent(
         env,
         learning_rate=2.5e-4,
-        rollout_steps=128,
-        minibatch_size=64,
+        rollout_steps=1024,
+        minibatch_size=256,
         n_epochs=10,
         clip_coef=0.2,
         vf_coef=0.5,
@@ -73,7 +73,7 @@ def main():
         gae_lambda=0.95,
         max_grad_norm=0.5,
         total_timesteps=cfg.n_episodes * cfg.max_timesteps,  # rough upper bound for scheduling
-        no_improve_tolerance=50,  # stop if no improvement for 50 print intervals
+        no_improve_tolerance=999999,  # stop if no improvement for 50 print intervals
     )
     start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
     env = agent.wrap_env(env)
