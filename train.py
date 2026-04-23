@@ -39,7 +39,7 @@ def plot_and_save(plot_episodes, avg_returns, avg_lengths, out_dir="plots"):
 
 def main():
     checkpoint_prefix = "models/mario_cluster_ckpt"
-    episode_suffix = "500"
+    episode_suffix = "1500"
 
     env = stable_retro.make(
         game=GAME_NAME,
@@ -72,7 +72,7 @@ def main():
         ent_coef_end=0.001,    # decays toward exploitation as training matures
         gae_lambda=0.95,
         max_grad_norm=0.5,
-        total_timesteps=cfg.n_episodes * cfg.max_timesteps,  # rough upper bound for scheduling
+        total_timesteps=3_000_000,  # rough upper bound for scheduling
         no_improve_tolerance=999999,  # stop if no improvement for 50 print intervals
     )
     start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
@@ -131,7 +131,9 @@ def main():
         if episode % 500 == 0 and episode > 0:
             print(f"Saving checkpoint at episode {episode}...")
             agent.save_checkpoint(checkpoint_prefix + f"_{episode}", episode)
-
+    # Save final checkpoint after training completes
+    print("Training complete. Saving final checkpoint...")
+    agent.save_checkpoint(checkpoint_prefix + "_final", cfg.n_episodes)
 
 if __name__ == "__main__":
     custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
