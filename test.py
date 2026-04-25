@@ -12,8 +12,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
-    checkpoint_prefix = "models/mario_cluster_ckpt"
-    episode_suffix = "1500"
+    checkpoint_prefix = "/models/mario_cluster_ckpt_MarioCircuit4_M_final_model.pth"
+    episode_suffix = ""
 
     env = stable_retro.make(
         game=GAME_NAME,

@@ -38,8 +38,8 @@ def plot_and_save(plot_episodes, avg_returns, avg_lengths, out_dir="plots"):
 
 
 def main():
-    checkpoint_prefix = "models/mario_cluster_ckpt"
-    episode_suffix = "1500"
+    checkpoint_prefix = "models/mario_cluster_ckpt" + f"_{cfg.state}"
+    episode_suffix = ""
 
     env = stable_retro.make(
         game=GAME_NAME,
@@ -62,18 +62,17 @@ def main():
 
     agent = PPO_Agent(
         env,
-        learning_rate=2.5e-4,
-        rollout_steps=1024,
+        learning_rate=5e-5,
+        rollout_steps=2048,
         minibatch_size=256,
-        n_epochs=10,
-        clip_coef=0.2,
-        vf_coef=0.5,
-        ent_coef_start=0.05,   # high entropy early → forces exploration
-        ent_coef_end=0.001,    # decays toward exploitation as training matures
+        n_epochs=4,
+        ent_coef_start=0.03,
+        ent_coef_end=0.01,
         gae_lambda=0.95,
+        clip_coef=0.1,
         max_grad_norm=0.5,
-        total_timesteps=3_000_000,  # rough upper bound for scheduling
-        no_improve_tolerance=999999,  # stop if no improvement for 50 print intervals
+        total_timesteps=3_000_000,
+        no_improve_tolerance=999999,
     )
     start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
     env = agent.wrap_env(env)
@@ -96,7 +95,7 @@ def main():
             action = agent.action_select(state)
             next_state, reward, terminated, truncated, info = env.step(action)
             episode_return += reward
-            agent.update(state, action, reward, next_state, terminated)
+            agent.update(state, action, reward, next_state, terminated or truncated)
 
             episode_over = terminated or truncated
             state = next_state
@@ -131,9 +130,10 @@ def main():
         if episode % 500 == 0 and episode > 0:
             print(f"Saving checkpoint at episode {episode}...")
             agent.save_checkpoint(checkpoint_prefix + f"_{episode}", episode)
+
     # Save final checkpoint after training completes
     print("Training complete. Saving final checkpoint...")
-    agent.save_checkpoint(checkpoint_prefix + "_final", cfg.n_episodes)
+    agent.save_checkpoint(checkpoint_prefix + f"_final", cfg.n_episodes)
 
 if __name__ == "__main__":
     custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
