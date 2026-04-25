@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium.wrappers import FrameStackObservation
-from wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, CompleteLapReward
+from src.wrapper import DebugObservation, DiscreteActionWrapper, MarioResize, MarioToPyTorch, MaxAndSkipEnv, EarlyTermination, CompleteLapReward
 import pickle
 
 # Check for GPU availability (CUDA first, then MPS, then CPU)

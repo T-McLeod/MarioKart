@@ -1,15 +1,15 @@
 import stable_retro
-from agents.random_agent import MarioKartRandomAgent
-from agents.deep_rl_agent import Deep_RL_Agent
-from agents.ppo_agent import PPO_Agent
-import config as cfg
+from .agents.random_agent import MarioKartRandomAgent
+from .agents.deep_rl_agent import Deep_RL_Agent
+from .agents.ppo_agent import PPO_Agent
+from . import config as cfg
 import numpy as np
 import os
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from wrapper import get_checkpoint
+from .wrapper import get_checkpoint
 
 GAME_NAME  = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

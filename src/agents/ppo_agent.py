@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 import numpy as np
 from gymnasium.wrappers import FrameStackObservation
 
-from wrapper import (
+from ..wrapper import (
     DebugObservation,
     DiscreteActionWrapper,
     MarioResize,

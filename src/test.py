@@ -1,10 +1,10 @@
 import stable_retro
-from agents.random_agent import MarioKartRandomAgent
-from agents.deep_rl_agent import Deep_RL_Agent
-import config as cfg
+from .agents.random_agent import MarioKartRandomAgent
+from .agents.deep_rl_agent import Deep_RL_Agent
+from . import config as cfg
 import numpy as np
 import os
-from wrapper import MarioResize, MarioToPyTorch
+from .wrapper import MarioResize, MarioToPyTorch
 
 
 GAME_NAME = "SuperMarioKart-Snes"
@@ -12,8 +12,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
-    checkpoint_prefix = "/models/mario_cluster_ckpt_MarioCircuit4_M_final_model.pth"
-    episode_suffix = ""
+    checkpoint_prefix = "models/dqn_circuit1_ckpt"
+    episode_suffix = "3000"
 
     env = stable_retro.make(
         game=GAME_NAME,

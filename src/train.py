@@ -1,14 +1,14 @@
 import stable_retro
-from agents.random_agent import MarioKartRandomAgent
-from agents.deep_rl_agent import Deep_RL_Agent
-from agents.ppo_agent import PPO_Agent
-import config as cfg
+from .agents.random_agent import MarioKartRandomAgent
+from .agents.deep_rl_agent import Deep_RL_Agent
+from .agents.ppo_agent import PPO_Agent
+from . import config as cfg
 import numpy as np
 import os
 import matplotlib
 matplotlib.use("Agg")  # headless backend — no display needed on the cluster
 import matplotlib.pyplot as plt
-from wrapper import MarioResize, MarioToPyTorch
+from .wrapper import MarioResize, MarioToPyTorch
 
 
 GAME_NAME = "SuperMarioKart-Snes"
