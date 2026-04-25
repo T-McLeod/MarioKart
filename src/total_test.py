@@ -9,11 +9,29 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from .wrapper import get_checkpoint
+from gymnasium.wrappers import FrameStackObservation
+from .wrapper import (
+    get_checkpoint,
+    MarioResize,
+    MarioToPyTorch,
+    MaxAndSkipEnv,
+    DiscreteActionWrapper,
+    EarlyTermination,
+    SpeedReward,
+    CompleteLapReward,
+)
 
 GAME_NAME  = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 EVAL_EPISODES = 50
+
+SIMPLE_ACTIONS = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: No Action
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1: Gas
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 2: Gas + Left
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 3: Gas + Right
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4: Brake / Reverse
+]
 
 # ── PPO checkpoints ───────────────────────────────────────────────────────────
 # Track 1: MarioCircuit_M  (early-stopped ~ep 1500)
@@ -33,12 +51,33 @@ PPO_CIRCUIT4_M = [
     ("final", "models/mario_cluster_ckpt_MarioCircuit4_M_final"),
 ]
 
-# ── DQN checkpoints (partner fills these paths in) ───────────────────────────
-DQN_CHECKPOINTS = [
-    # ("500",  "models/PARTNER_FILLS_THIS_IN_500"),
-    # ("1000", "models/PARTNER_FILLS_THIS_IN_1000"),
-    # ("1500", "models/PARTNER_FILLS_THIS_IN_1500"),
-    # ("2000", "models/PARTNER_FILLS_THIS_IN_2000"),
+
+# ── DQN checkpoints ───────────────────────────────────────────────────────────
+# Circuit 1 / MarioCircuit_M
+DQN_CIRCUIT1 = [
+    ("250",  "models/dqn_circuit1_ckpt_250"),
+    ("500",  "models/dqn_circuit1_ckpt_500"),
+    ("750",  "models/dqn_circuit1_ckpt_750"),
+    ("1000", "models/dqn_circuit1_ckpt_1000"),
+    ("1250", "models/dqn_circuit1_ckpt_1250"),
+    ("1500", "models/dqn_circuit1_ckpt_1500"),
+    ("1750", "models/dqn_circuit1_ckpt_1750"),
+    ("2000", "models/dqn_circuit1_ckpt_2000"),
+    ("2250", "models/dqn_circuit1_ckpt_2250"),
+    ("2500", "models/dqn_circuit1_ckpt_2500"),
+    ("2750", "models/dqn_circuit1_ckpt_2750"),
+    ("3000", "models/dqn_circuit1_ckpt_3000"),
+]
+
+# Circuit 4 / MarioCircuit4_M
+DQN_CIRCUIT4 = [
+    ("500",  "models/mario_run4_ckpt_500"),
+    ("1500", "models/mario_run4_ckpt_1500"),
+    ("2000", "models/mario_run4_ckpt_2000"),
+    ("2250", "models/mario_run4_ckpt_2250"),
+    ("2500", "models/mario_run4_ckpt_2500"),
+    ("2750", "models/mario_run4_ckpt_2750"),
+    ("3000", "models/mario_run4_ckpt_3000"),
 ]
 
 
@@ -52,6 +91,20 @@ def make_env(state):
         inttype=stable_retro.data.Integrations.ALL,
     )
 
+def wrap_eval_env(env):
+    env = MarioResize(env)
+    env = MaxAndSkipEnv(env, skip=4)
+    env = FrameStackObservation(env, 4)
+    env = MarioToPyTorch(env)
+
+    action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
+    env = DiscreteActionWrapper(env, action_map=action_map)
+
+    env = EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5)
+    env = SpeedReward(env, scale=0.0001)
+    env = CompleteLapReward(env)
+
+    return env
 
 # ── Failure categorisation ────────────────────────────────────────────────────
 def categorise_failure(row):
@@ -153,10 +206,12 @@ def eval_dqn(label, checkpoint_path, train_state, eval_state):
 
 # ── Random baseline ───────────────────────────────────────────────────────────
 def eval_random(eval_state):
-    env   = make_env(eval_state)
+    env = make_env(eval_state)
+    env = wrap_eval_env(env)
+
     agent = MarioKartRandomAgent(env)
-    # No wrap_env — random agent samples from raw action space
     logs, avg, std = run_episodes(agent, env, "Random", eval_state, eval_state)
+
     env.close()
     return logs, avg, std
 
@@ -345,63 +400,129 @@ def main():
         all_results[label] = {"avg": avg, "std": std}
         circuit4_m_series.append({"label": ep_label, "avg": avg, "std": std})
 
-    # ── 5. DQN checkpoints (partner adds paths above to enable) ──────────────
-    if DQN_CHECKPOINTS:
-        print("\n── DQN checkpoints ──")
-        for ep_label, ckpt_path in DQN_CHECKPOINTS:
-            label = f"DQN-{ep_label}"
-            logs, avg, std = eval_dqn(label, ckpt_path,
-                                      train_state="MarioCircuit_M",
-                                      eval_state ="MarioCircuit_M")
-            all_logs.extend(logs)
-            all_results[label] = {"avg": avg, "std": std}
-    else:
-        print("\n── DQN checkpoints: paths not yet added (partner TODO) ──")
+    # ── 5. DQN — Circuit1/MarioCircuit_M (in-distribution) ───────────────────
+    print("\n── DQN Circuit1 checkpoints (in-distribution) ──")
+    dqn_circuit1_series = []
+    for ep_label, ckpt_path in DQN_CIRCUIT1:
+        label = f"DQN-Circ1-{ep_label}"
+        logs, avg, std = eval_dqn(label, ckpt_path,
+                                  train_state="MarioCircuit_M",
+                                  eval_state ="MarioCircuit_M")
+        all_logs.extend(logs)
+        all_results[label] = {"avg": avg, "std": std}
+        dqn_circuit1_series.append({"label": ep_label, "avg": avg, "std": std})
 
-    # ── 6. Save raw data ──────────────────────────────────────────────────────
+    # ── 6. DQN — Circuit1 models tested on MarioCircuit4_M (OOD) ─────────────
+    print("\n── DQN Circuit1 checkpoints (OUT-OF-DISTRIBUTION on Circuit4_M) ──")
+    dqn_circuit1_ood = []
+    for ep_label, ckpt_path in DQN_CIRCUIT1:
+        label = f"DQN-Circ1-{ep_label}-OOD"
+        logs, avg, std = eval_dqn(label, ckpt_path,
+                                  train_state="MarioCircuit_M",
+                                  eval_state ="MarioCircuit4_M")
+        all_logs.extend(logs)
+        all_results[label] = {"avg": avg, "std": std}
+        dqn_circuit1_ood.append({"label": ep_label, "avg": avg, "std": std})
+
+    # ── 7. DQN — Circuit4/MarioCircuit4_M (in-distribution) ──────────────────
+    print("\n── DQN Circuit4 checkpoints (in-distribution) ──")
+    dqn_circuit4_series = []
+    for ep_label, ckpt_path in DQN_CIRCUIT4:
+        label = f"DQN-Circ4-{ep_label}"
+        logs, avg, std = eval_dqn(label, ckpt_path,
+                                  train_state="MarioCircuit4_M",
+                                  eval_state ="MarioCircuit4_M")
+        all_logs.extend(logs)
+        all_results[label] = {"avg": avg, "std": std}
+        dqn_circuit4_series.append({"label": ep_label, "avg": avg, "std": std})
+
+    # ── 8. Save raw data ──────────────────────────────────────────────────────
     df_all = pd.DataFrame(all_logs)
     df_all.to_csv(os.path.join(out_dir, "eval_log.csv"), index=False)
     print(f"\nRaw log saved → eval_results/eval_log.csv  ({len(df_all)} episodes)")
 
-    # ── 7. Print comparison table ─────────────────────────────────────────────
+    # ── 9. Print comparison table ─────────────────────────────────────────────
     print("\n=== Full Model Comparison Table ===")
     print(f"{'Agent':<35} {'Avg Return':>12} {'Std Dev':>10} "
           f"{'Avg Checkpoint':>16} {'Avg Length':>12}")
     print("-" * 90)
     for agent_label, vals in all_results.items():
-        agent_rows  = df_all[df_all["agent"] == agent_label]
-        avg_ckpt    = agent_rows["final_checkpoint"].mean()
-        avg_len     = agent_rows["length"].mean()
-        ood_tag     = " [OOD]" if agent_rows["ood"].any() else ""
+        agent_rows = df_all[df_all["agent"] == agent_label]
+        avg_ckpt   = agent_rows["final_checkpoint"].mean()
+        avg_len    = agent_rows["length"].mean()
+        ood_tag    = " [OOD]" if agent_rows["ood"].any() else ""
         print(f"{agent_label + ood_tag:<35} {vals['avg']:>12.2f} "
               f"{vals['std']:>10.2f} {avg_ckpt:>16.1f} {avg_len:>12.1f}")
 
-    # ── 8. Plots ──────────────────────────────────────────────────────────────
-    # PPO Circuit_M progression
+    # ── 10. Plots ─────────────────────────────────────────────────────────────
+    # PPO progressions
     plot_progression(
         circuit_m_in_dist,
         "PPO Learning Progression — MarioCircuit_M",
         "ppo_circuitM_progression.png", out_dir
     )
-
-    # PPO Circuit4_M progression
     plot_progression(
         circuit4_m_series,
         "PPO Learning Progression — MarioCircuit4_M",
         "ppo_circuit4M_progression.png", out_dir
     )
 
-    # OOD generalisation comparison
+    # DQN progressions
+    plot_progression(
+        dqn_circuit1_series,
+        "DQN Learning Progression — MarioCircuit_M",
+        "dqn_circuit1_progression.png", out_dir
+    )
+    plot_progression(
+        dqn_circuit4_series,
+        "DQN Learning Progression — MarioCircuit4_M",
+        "dqn_circuit4_progression.png", out_dir
+    )
+
+    # PPO OOD comparison
     plot_ood_comparison(circuit_m_in_dist, circuit_m_ood, out_dir)
 
-    # Full agent comparison bar chart
+    # DQN OOD comparison — reuse same function with new filename
+    labels   = [r["label"] for r in dqn_circuit1_series]
+    in_avgs  = [r["avg"]   for r in dqn_circuit1_series]
+    ood_avgs = [r["avg"]   for r in dqn_circuit1_ood]
+    in_stds  = [r["std"]   for r in dqn_circuit1_series]
+    ood_stds = [r["std"]   for r in dqn_circuit1_ood]
+    x        = np.arange(len(labels))
+    width    = 0.35
+    fig, ax  = plt.subplots(figsize=(12, 5))
+    ax.bar(x - width/2, in_avgs,  width, yerr=in_stds,  capsize=4,
+           label="In-distribution (MarioCircuit_M)",      color="steelblue",  alpha=0.85)
+    ax.bar(x + width/2, ood_avgs, width, yerr=ood_stds, capsize=4,
+           label="Out-of-distribution (MarioCircuit4_M)", color="darkorange", alpha=0.85)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"Ep {l}" for l in labels], rotation=20, ha="right")
+    ax.set_ylabel("Avg Eval Return (50 episodes)")
+    ax.set_title("DQN Generalisation: In-Distribution vs Out-of-Distribution Track")
+    ax.legend()
+    ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+    ax.grid(True, alpha=0.3, axis="y")
+    plt.tight_layout()
+    fig.savefig(os.path.join(out_dir, "dqn_ood_generalisation.png"), dpi=120)
+    plt.close(fig)
+    print("Saved dqn_ood_generalisation.png")
+
+    # Full agent comparison — PPO final vs DQN final vs Random only
+    # (too many checkpoints to show all, so just show best of each)
+    summary_results = {
+        "Random":           all_results["Random"],
+        "DQN-Circ1-3000":  all_results["DQN-Circ1-3000"],
+        "DQN-Circ4-3000":  all_results["DQN-Circ4-3000"],
+        "PPO-CircM-1500/early": all_results["PPO-CircM-1500/early"],
+        "PPO-Circ4M-final": all_results["PPO-Circ4M-final"],
+    }
     plot_comparison_bar(
-        all_results,
-        "All Agent Comparison — Super Mario Kart",
+        summary_results,
+        "Best Agent Comparison — Super Mario Kart",
         "agent_comparison.png", out_dir
     )
 
-    # Error analysis
+    # Error analysis across all agents
     plot_error_analysis(all_logs, out_dir)
 
     print("\n── All plots saved to eval_results/ ──")
