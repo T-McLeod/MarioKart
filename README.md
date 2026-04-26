@@ -23,7 +23,7 @@ python test.py
 ```
 
 ## Video Links
-- 🎮 [Demo Video](YOUR_LINK_HERE)
+- 🎮 [Demo Video](https://drive.google.com/file/d/1NOCF5jBTGUE8oJ1EbTIFE4wct0Q7VcU1/view?usp=sharing)
 - 🔧 [Technical Walkthrough](YOUR_LINK_HERE)
 
 ## Evaluation
