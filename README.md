@@ -306,14 +306,44 @@ rare.
 
 ## Project Structure
 ```
-├── agents/
-│   ├── deep_rl_agent.py   # DQN with experience replay + target network
-│   ├── ppo_agent.py       # PPO with GAE and actor-critic architecture
-│   └── random_agent.py    # Random baseline
-├── wrapper.py             # Gymnasium wrappers (preprocessing, reward shaping)
-├── train.py               # Training loop with live curve plotting
-├── test.py                # Checkpoint evaluation, error analysis, OOD testing
-├── config.py              # Environment configuration
-├── Dockerfile             # Container for reproducible training
-└── custom_integrations/   # SNES Mario Kart retro integration
+MarioKart/
+├── custom_integrations/
+│   └── SuperMarioKart-Snes/         # Custom Stable Retro game integration files
+├── eval_results/                    # Generated evaluation plots and metrics
+│   ├── agent_comparison.png         # Best-agent comparison bar chart
+│   ├── dqn_circuit1_progression.png # DQN learning progression on MarioCircuit_M
+│   ├── dqn_circuit4_progression.png # DQN learning progression on MarioCircuit4_M
+│   ├── dqn_ood_generalisation.png   # DQN in-distribution vs OOD comparison
+│   ├── error_analysis_combined.png  # Combined error analysis summary
+│   ├── error_analysis_dqn.png       # DQN-focused error analysis summary
+│   ├── error_analysis_ppo.png       # PPO-focused error analysis summary
+│   ├── error_dqn_circuit4M.png      # DQN failure breakdown on MarioCircuit4_M
+│   ├── error_dqn_circuitM.png       # DQN failure breakdown on MarioCircuit_M
+│   ├── error_ppo_circuit4M.png      # PPO failure breakdown on MarioCircuit4_M
+│   ├── error_ppo_circuitM.png       # PPO failure breakdown on MarioCircuit_M
+│   ├── error_random.png             # Random baseline failure breakdown
+│   ├── error_scatter.png            # Scatter plot of episode returns by failure type
+│   ├── eval_log.csv                 # Full episode-by-episode evaluation log
+│   ├── ood_generalisation.png       # PPO in-distribution vs OOD comparison
+│   ├── ppo_circuit4M_progression.png# PPO learning progression on MarioCircuit4_M
+│   └── ppo_circuitM_progression.png # PPO learning progression on MarioCircuit_M
+├── plots/
+│   └── training_curve.png           # Training reward / episode length curve
+├── src/
+│   ├── agents/
+│   │   ├── __init__.py              # Agents package marker
+│   │   ├── deep_rl_agent.py         # Custom DQN agent with replay + target network
+│   │   ├── ppo_agent.py             # Custom PPO / actor-critic implementation
+│   │   └── random_agent.py          # Random-action baseline agent
+│   ├── __init__.py                  # Source package marker
+│   ├── config.py                    # Shared config / hyperparameters / runtime settings
+│   ├── test.py                      # Single-run / checkpoint testing utilities
+│   ├── total_test.py                # Full evaluation pipeline and plot generation
+│   ├── train.py                     # Main training entry point
+│   └── wrapper.py                   # Mario Kart wrappers: resize, frame-stack, action map, rewards
+├── .gitignore                       # Git ignore rules
+├── ATTRIBUTIONS.md                  # External sources, AI usage, and reference attributions
+├── Dockerfile                       # Reproducible environment / container setup
+├── README.md                        # Project overview, setup, results, and rubric evidence
+└── requirements.txt                 # Python dependencies
 ```
