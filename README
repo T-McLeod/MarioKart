@@ -116,26 +116,77 @@ respective tracks. Full raw data in `eval_results/eval_log.csv`.
 ### Error Analysis
 We categorised evaluation episodes into four failure types:
 
-| Failure Type | Definition | Root Cause |
-|---|---|---|
+| Failure Type | Definition |
+|---|---|
 | `never_moved` | Final checkpoint = 0, did not time out | Agent not yet learned gas action produces reward; concentrated in DQN ep 250 (44/50 episodes) and early PPO Circuit4M checkpoints |
 | `stuck_early` | Stuck termination fired, checkpoint < 5 | Discrete action space (5 actions) lacks fine-grained steering; agent trapped on tight corners. Dominant failure for PPO (43/50 at early-stop checkpoint) and early DQN |
 | `timeout` | Hit `max_timesteps` without terminating | Agent drives forward but corners inefficiently — absent in most trained agents, replaced by success |
 | `success` | Meaningful checkpoint progress made | N/A — DQN-Circ1 at ep 1500+ achieves 50/50 success consistently |
 
-Key observations from the failure data:
-- DQN Circuit_M from episode 1500 and beyond achieved **50/50
-  success** with zero failures, the most consistent performance
-  across all agents
-- PPO never achieved full success on either track. stuck_early
-  remained the dominant failure mode throughout, indicating the agent was never really able to get going and moving
-- DQN's OOD performance on Circuit4_M collapsed completely at ep
-  3000 (48/50 never_moved) despite strong in-distribution performance. With some investigation we found this agent was still very strong until it went off course, then it was unable to recover. We attribute this to replay buffer collapse, where the replay buffer was filled with almost exclusivley on-road states that in the rare scenario where it went off-road it no longer could recover.
+#### **Key Case Studies: Failure Mode Analysis**
 
+Below is a breakdown of the primary failure cases identified during the training and evaluation phases of our DQN agent.
+
+---
+
+**1. The "Under-Trained" Policy (Early Stagnation)**
+* **Description:** This is the most trivial failure state, occurring during the initial epsilon-heavy exploration phase. 
+* **Analysis:** At this stage, the agent has not yet correlated the "Gas" button with positive reward returns or progress through the state space. It often remains at the starting line or performs erratic, non-directional movements. This serves as our baseline for "zero-knowledge" behavior.
+
+**2. The "Frozen" Agent (Negative Reward Avoidance)**
+* **Description:** Despite reaching late-stage training, some agents would abruptly cease all movement. 
+* **Analysis:** This phenomenon usually followed a sharp decline in mean rewards. It is a classic example of a **local optimum** caused by our penalty structure. Because wall collisions carried a heavy negative weight, the agent mathematically determined that the "safest" way to minimize loss, if it could not guarantee a clean line through a turn, was to remain perfectly stationary. In its "view," zero reward was preferable to the guaranteed negative reward of a collision.
+*insert picture*
+
+**3. Recovery Deadlocks (Action Space Constraints)**
+* **Description:** Even high-performing agents occasionally became permanently lodged behind environmental obstacles, such as pipes or corners.
+* **Analysis:** This failure is not a failure of the model’s "intelligence," but rather a **State-Action Bottleneck**. We observed agents stuck behind pipes where the only solution was to reverse. However, to keep the model's complexity manageable, we did not include a "Reverse" action in the discrete action space. The agent was effectively trapped in a **dead-end state**: driving forward caused a penalty, and staying still yielded zero progress. Without a "Back Up" option, the agent had no valid trajectory to escape.
+*insert picture*
+
+**4. The Performance "Ceiling" (Mechanical Bottlenecks)**
+* **Description:** We observed a hard cap on lap times; regardless of extended training duration or hyperparameter tuning, the agent could not break certain time barriers.
+* **Analysis:** When comparing our agent to state-of-the-art models online, we realized we had reached an **Action Space Ceiling**. To simplify the learning process, we excluded advanced mechanics like **drifting (power-sliding)** and **brake-turning**. While this made the initial policy easier to learn, it removed the agent's ability to maintain high velocity through tight corners. Our model learned the "perfect" line for its limited toolkit, but it was mechanically incapable of matching the speeds achievable through the game's more complex physics.
+
+
+#### **Model Evaluation and Comparative Analysis**
+
+Below is a detailed analysis of our experimental results across different architectures and circuits, highlighting the specific challenges of policy stability, sample diversity, and reward sensitivity.
+
+---
+
+#### **1. DQN Performance: Circuit M**
 ![Error Analysis](eval_results/error_dqn_circuitM.png)
+
+**Observations:**
+The DQN agent on Circuit M demonstrated strong convergence during the mid-to-late stages of training, achieving a **~100% success rate** by Episode 2750. However, as training continued beyond this peak, we observed a slight regression in reliability.
+
+**Analysis — Late-Stage Policy Degradation:**
+In the "Out of Distribution" phase, the model transitioned into **Case 2: The Frozen Agent**. As the agent’s policy became more deterministic, it developed an extreme form of risk aversion. We found that the model eventually determined the optimal mathematical strategy was to cease all throttle input rather than risk the heavy negative penalties associated with wall collisions. This represents a failure in the balance of our reward shaping, where the penalty for "failure" (crashing) eventually outweighed the incentive for "success" (completing the lap).
+
+---
+
+#### **2. DQN Performance: Circuit 4M (Replay Buffer Collapse)**
 ![Error Analysis](eval_results/error_dqn_circuit4M.png)
+
+**Observations:**
+The Circuit 4M model was **extremely performant** at Episode 2750, executing near-flawless laps. However, this was followed by a precipitous drop in performance that did not align with the typical "frozen agent" behavior.
+
+**Analysis — Replay Buffer Collapse & Recovery Failure:**
+We identified this phenomenon as **Replay Buffer Collapse**. As the agent became highly proficient, the Replay Buffer was systematically filled with "perfect" state-action pairs. Consequently, the agent stopped learning from "bad" data. 
+
+By Episode 3000, the agent had effectively **"forgotten" how to recover from errors**. While it could drive a perfect line, the slightest stochastic deviation or environmental bump forced the agent into an unfamiliar state. Because the buffer no longer contained transitions for "recovering from a slide" or "re-centering after a collision," the model suffered from **Catastrophic Forgetting**, leading to total policy breakdown upon the first minor mistake.
+
+---
+
+#### **3. PPO Performance: Circuits M & 4M**
 ![Error Analysis](eval_results/error_ppo_circuitM.png)
 ![Error Analysis](eval_results/error_ppo_circuit4M.png)
+
+**Observations:**
+In contrast to the DQN, our PPO (Proximal Policy Optimization) agents struggled to develop a viable racing policy on either circuit. While they consistently outperformed a random-action baseline, they never completed a full lap.
+
+**Analysis — On-Policy Local Minima:**
+The PPO agents fell victim to the **"Frozen Agent"** syndrome significantly earlier than the DQN models. We attribute this to PPO's **on-policy** nature. Because PPO learns only from the data
 
 ### Out-of-Distribution Generalisation
 We evaluated Circuit_M-trained models on Circuit4_M (a track neither
@@ -148,6 +199,7 @@ achieved 223.9 OOD avg return despite 0.0 in-distribution return —
 an anomalous checkpoint where the policy happened to generalise better.
 This indicates DQN learned track-specific Q-values rather than
 transferable driving behavior.
+![DQN OOD Generalisation](eval_results/dqn_ood_generalisation.png)
 
 **PPO generalisation:** More consistent but weaker. PPO Circuit_M at
 ep 500 retained 55% of its in-distribution return on Circuit4_M
@@ -156,7 +208,6 @@ generalizable low-level features (edge detection, forward motion) but
 not track-agnostic navigation.
 
 ![PPO OOD Generalisation](eval_results/ood_generalisation.png)
-![DQN OOD Generalisation](eval_results/dqn_ood_generalisation.png)
 
 ### Model Development Iterations
 
