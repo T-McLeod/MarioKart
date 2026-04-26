@@ -95,7 +95,7 @@ def make_env(state):
     )
 
 def wrap_eval_env(env):
-    '''this is inspired by existing RL examples, even though the Mario-specific wrappers are ours.
+    '''this is inspired by our existing RL examples.
     We only use this helper for the random baseline, since DQN and PPO call their own wrap_env().'''
     env = MarioResize(env)
     env = MaxAndSkipEnv(env, skip=4)
@@ -135,9 +135,8 @@ def categorise_failure(row):
 
 def run_episodes(agent, env, agent_label, train_state, eval_state):
     """Run EVAL_EPISODES greedy episodes. Returns list of per-episode dicts."""
-    #overall scaffold is generic RL evaluation boilerplate, but we adapted it to
-    #log Mario-specific things like checkpoint progress and OOD status.
-    #AI was used to help build this
+    # AI helped scaffold this reusable evaluation loop
+    # We then adapted it for this project by adding Mario-specific logging, including checkpoint progress, episode length, and OOD tracking
     episode_log = []
     ood = (train_state != eval_state)   # marks when a model is evaluated on a different track than it was trained on
 
@@ -243,7 +242,8 @@ failure_types = ["never_moved", "stuck_early", "timeout", "success"]
 
 def _stacked_bar(ax, agents, df, fontsize=7):
     """Stacked bar chart of failure types for a list of agents."""
-    #AI was used to help make sure it would generate a clean looking graph
+    # AI helped with the plotting template for this reusable stacked bar helper especially layout/labeling structure 
+    # The failure categories themselves are ours
     bottom = np.zeros(len(agents))
     for ftype in failure_types:
         counts = [(df[df["agent"] == a]["failure_type"] == ftype).sum()
@@ -268,7 +268,8 @@ def _add_ood_background(ax, agents):
 
 def _add_divider(ax, in_dist_agents):
     """Dashed divider + labels between in-dist and OOD sections."""
-    #AI was used to help add this so it would be easier to read
+    #AI helped with this small readability helper so the in-distribution and OOD
+    #sections are easier to distinguish visually.
     split_idx = len(in_dist_agents) - 0.5
     ax.axvline(split_idx, color="black", linewidth=1.5, linestyle="--")
     ymax = ax.get_ylim()[1]
@@ -282,8 +283,8 @@ def _add_divider(ax, in_dist_agents):
 
 def plot_progression(results_list, title, filename, out_dir):
     """Line chart of avg return vs checkpoint label for a single agent series."""
-    #AI was used to edit this function to make sure we were generating a clean and easily interpreted visualization
-    # standard matplotlib helper structure for line charts plus a shaded uncertainty band
+    # AI helped refine the plotting template, including the progression-line
+    # layout and the shaded variability band. We adapted it to our checkpoint results
     labels = [r["label"] for r in results_list]
     avgs   = [r["avg"]   for r in results_list]
     stds   = [r["std"]   for r in results_list]
@@ -308,7 +309,8 @@ def plot_progression(results_list, title, filename, out_dir):
 
 def plot_comparison_bar(results_dict, title, filename, out_dir):
     """Bar chart comparing avg return across agents — shows best checkpoint per agent."""
-    #AI was used here to make sure everything fit neatly and helped with formatting
+    #AI helped with the bar-chart formatting and layout so the summary comparison
+    #stays readable when multiple agent labels
     agents = list(results_dict.keys())
     avgs   = [results_dict[a]["avg"] for a in agents]
     stds   = [results_dict[a]["std"] for a in agents]
@@ -330,7 +332,8 @@ def plot_comparison_bar(results_dict, title, filename, out_dir):
 
 def plot_ood_comparison(in_dist_results, ood_results, out_dir):
     """Side-by-side bars: in-distribution vs OOD track performance."""
-    #AI was used for this function to help make sure everything fit nicely
+    # AI helped with the grouped-bar plotting outline
+    #we took outline and fit it to actual OOD comparison
     #cross-track generalization
     labels   = [r["label"] for r in in_dist_results]
     in_avgs  = [r["avg"]   for r in in_dist_results]
@@ -369,9 +372,8 @@ def plot_error_analysis(all_logs, out_dir):
       error_dqn_circuitM.png    — DQN Circuit_M: in-dist | OOD
       error_dqn_circuit4M.png   — DQN Circuit4_M: in-dist only
     """
-    #AI was used here so we ould generate clean and readable graphs based on the data collected
-    #for the error analysis of each category
-    # The actual split by algorithm, track, and OOD status is much more project-specific.
+    # AI used for some plotting scaffolding (repeated figure/subplot structure)
+    #The breakdown by algorithm, track, and OOD status was designed by us
     df = pd.DataFrame(all_logs)
     df["failure_type"] = df.apply(categorise_failure, axis=1)
 
@@ -459,7 +461,8 @@ def plot_error_analysis(all_logs, out_dir):
 
 
 def main():
-    #AI was used to help form this based off of original matplot scaffolding and our ideas
+    # AI for organizing parts of evaluation scaffold and some plotting flow
+    #experiment design, checkpoint groupings, OOD comparisons, and summary logic we did
     out_dir = "eval_results"
     os.makedirs(out_dir, exist_ok=True)
 
