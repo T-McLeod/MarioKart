@@ -194,7 +194,7 @@ agent trained on) to test transfer of learned driving skills.
 
 <div align=center> 
   <img src="extra_files/OOD_Video.gif" />
-  ![OOD Video](extra_files/OOD_Video.gif) 
+   
 </div>
 
 **DQN generalisation:** 
