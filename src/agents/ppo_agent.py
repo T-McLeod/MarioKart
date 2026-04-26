@@ -39,23 +39,6 @@ SIMPLE_ACTIONS = [
 ]
 
 
-# expanded set for experimentation
-DISCOVERY_ACTIONS = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # idle
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # gas
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # gas + left
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # gas + right
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # brake
-    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # brake + left
-    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # brake + right
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # gas + hop
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],  # gas + left + hop
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],  # gas + right + hop
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # gas + item
-    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # gas + left + item
-    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # gas + right + item
-]
-
 
 # architecture adapted from CleanRL ppo_atari.py Agent
 class ActorCritic(nn.Module):
@@ -132,7 +115,6 @@ class PPO_Agent:
         max_grad_norm=0.5,        # CleanRL default
         total_timesteps=3_000_000,
         no_improve_tolerance=999999,
-        use_discovery_actions=False,
         verbose=False,
     ):
         self.env = env
@@ -157,7 +139,7 @@ class PPO_Agent:
         self.intervals_without_improvement = 0
         self.should_stop = False
 
-        self.action_set = DISCOVERY_ACTIONS if use_discovery_actions else SIMPLE_ACTIONS
+        self.action_set = SIMPLE_ACTIONS
         self.num_actions = len(self.action_set)
 
         self.ac_net = ActorCritic(self.num_actions).to(device)
