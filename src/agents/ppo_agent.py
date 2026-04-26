@@ -18,6 +18,7 @@ from ..wrapper import (
 )
 
 
+# device selection — CleanRL ppo_atari.py
 if torch.cuda.is_available():
     device = torch.device("cuda")
 elif torch.backends.mps.is_available():
@@ -28,6 +29,7 @@ else:
 print(f"Using device: {device}")
 
 
+# reduced from full SNES button space
 SIMPLE_ACTIONS = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # idle
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # gas
@@ -37,6 +39,7 @@ SIMPLE_ACTIONS = [
 ]
 
 
+# expanded set for experimentation
 DISCOVERY_ACTIONS = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # idle
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # gas
@@ -54,6 +57,7 @@ DISCOVERY_ACTIONS = [
 ]
 
 
+# architecture adapted from CleanRL ppo_atari.py Agent
 class ActorCritic(nn.Module):
     def __init__(self, num_actions):
         super().__init__()
@@ -71,6 +75,8 @@ class ActorCritic(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
+        # orthogonal init from CleanRL layer_init()
+        # gains: sqrt(2) conv/fc, 0.01 actor, 1.0 critic
         nn.init.orthogonal_(self.conv1.weight, gain=np.sqrt(2))
         nn.init.orthogonal_(self.conv2.weight, gain=np.sqrt(2))
         nn.init.orthogonal_(self.conv3.weight, gain=np.sqrt(2))
@@ -98,6 +104,8 @@ class ActorCritic(nn.Module):
         return logits, value
 
     def get_action_and_value(self, x, action=None):
+        # CleanRL Agent.get_action_and_value()
+        # pixel norm handled in MarioToPyTorch
         logits, value = self.forward(x)
         dist = Categorical(logits=logits)
 
@@ -116,12 +124,12 @@ class PPO_Agent:
         rollout_steps=2048,
         minibatch_size=256,
         n_epochs=4,
-        clip_coef=0.1,
-        vf_coef=0.5,
-        ent_coef_start=0.03,
-        ent_coef_end=0.01,
-        gae_lambda=0.95,
-        max_grad_norm=0.5,
+        clip_coef=0.1,            # CleanRL atari default
+        vf_coef=0.5,              # CleanRL default
+        ent_coef_start=0.03,      
+        ent_coef_end=0.01,        
+        gae_lambda=0.95,          
+        max_grad_norm=0.5,        # CleanRL default
         total_timesteps=3_000_000,
         no_improve_tolerance=999999,
         use_discovery_actions=False,
@@ -143,6 +151,7 @@ class PPO_Agent:
         self.verbose = verbose
 
         self.steps = 0
+        # early stopping
         self.no_improve_tolerance = no_improve_tolerance
         self.best_avg_return = float("-inf")
         self.intervals_without_improvement = 0
@@ -152,6 +161,7 @@ class PPO_Agent:
         self.num_actions = len(self.action_set)
 
         self.ac_net = ActorCritic(self.num_actions).to(device)
+        # eps=1e-5 -- CleanRL 
         self.optimizer = torch.optim.Adam(
             self.ac_net.parameters(),
             lr=learning_rate,
@@ -171,6 +181,7 @@ class PPO_Agent:
         self._rb_dones = []
 
     def record_return(self, avg_return):
+        # early stopping implemented
         if avg_return > self.best_avg_return + 1.0:
             self.best_avg_return = avg_return
             self.intervals_without_improvement = 0
@@ -186,6 +197,7 @@ class PPO_Agent:
             self.should_stop = True
 
     def action_select(self, state):
+        # this is so it works with same train since episodic 
         state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
         with torch.no_grad():
@@ -198,24 +210,25 @@ class PPO_Agent:
 
     def _process_reward(self, reward):
         """
-        PPO-only internal reward processing.
-
-        The wrapper rewards stay unchanged, so DQN/PPO evaluation is still fair.
-        This only stabilizes PPO's advantage/value learning.
+        PPO-only internal reward processing — original, not in CleanRL.
+        CleanRL clips to {-1, 0, 1}; we use log-transform to prevent
+        gradient shock from the +1000 lap reward while preserving scale.
+        Scale factors tuned across two training iterations.
         """
 
-        # Lap completion or other huge reward.
+        # Lap completion or other huge reward
         if abs(reward) >= 500:
             return 5.0 * np.sign(reward) * np.log1p(abs(reward))
 
-        # Stuck / early termination penalty.
+        # Stuck / early termination penalty
         if reward <= -4:
             return 3.0 * reward
 
-        # Normal checkpoint / speed / small shaping reward.
+        # Normal checkpoint / speed / small shaping reward
         return 10.0 * np.sign(reward) * np.log1p(abs(reward))
 
     def update(self, state, action, reward, next_state, done):
+        #buffer here and trigger update when rollout is full
         processed_reward = self._process_reward(reward)
 
         self._rb_states.append(state)
@@ -232,16 +245,20 @@ class PPO_Agent:
             self._init_rollout_buffer()
 
     def _ppo_update(self, last_next_state, last_done):
+        # core update adapted from CleanRL ppo_atari.py
         progress = min(self.steps / self.total_timesteps, 1.0)
 
+        # entropy decay
         ent_coef = self.ent_coef_start + progress * (
             self.ent_coef_end - self.ent_coef_start
         )
 
+        #lr annealing — CleanRL: frac = 1 - (iter-1)/num_iters
         lr = max(self.learning_rate * (1.0 - progress), 1e-6)
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
 
+        #CleanRL idea used
         with torch.no_grad():
             last_state_t = torch.tensor(
                 last_next_state,
@@ -259,6 +276,7 @@ class PPO_Agent:
         advantages = np.zeros(T, dtype=np.float32)
         last_gae = 0.0
 
+        #GAE — CleanRL
         for t in reversed(range(T)):
             if t == T - 1:
                 non_terminal = 1.0 - float(last_done)
@@ -277,8 +295,9 @@ class PPO_Agent:
             )
             advantages[t] = last_gae
 
-        returns = advantages + values
+        returns = advantages + values  #CleanRL
 
+        # flatten buffer to tensors — CleanRL "flatten the batch"
         b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).to(device)
         b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device)
         b_old_log_probs = torch.tensor(
@@ -289,6 +308,7 @@ class PPO_Agent:
         b_returns = torch.tensor(returns, dtype=torch.float32).to(device)
         b_old_values = torch.tensor(values, dtype=torch.float32).to(device)
 
+        # advantage normalization — CleanRL norm_adv=True
         b_advantages = (b_advantages - b_advantages.mean()) / (
             b_advantages.std() + 1e-8
         )
@@ -309,11 +329,13 @@ class PPO_Agent:
 
                 new_values = new_values.view(-1)
 
+                #KL
                 log_ratio = new_log_probs - b_old_log_probs[mb_idx]
                 ratio = log_ratio.exp()
 
                 mb_adv = b_advantages[mb_idx]
 
+                #CleanRL
                 pg_loss_1 = -mb_adv * ratio
                 pg_loss_2 = -mb_adv * torch.clamp(
                     ratio,
@@ -322,6 +344,7 @@ class PPO_Agent:
                 )
                 pg_loss = torch.max(pg_loss_1, pg_loss_2).mean()
 
+                # clipped value loss from CleanRL clip_vloss=True
                 value_clipped = b_old_values[mb_idx] + torch.clamp(
                     new_values - b_old_values[mb_idx],
                     -self.clip_coef,
@@ -337,6 +360,7 @@ class PPO_Agent:
 
                 entropy_loss = entropy.mean()
 
+                # combined loss — CleanRL
                 loss = (
                     pg_loss
                     + self.vf_coef * v_loss
@@ -345,12 +369,14 @@ class PPO_Agent:
 
                 self.optimizer.zero_grad()
                 loss.backward()
+                # grad clipping — CleanRL
                 nn.utils.clip_grad_norm_(
                     self.ac_net.parameters(),
                     self.max_grad_norm,
                 )
                 self.optimizer.step()
 
+                #aprrox kl
                 approx_kl = ((ratio - 1.0) - log_ratio).mean().item()
 
                 if approx_kl > 0.04:
@@ -361,6 +387,8 @@ class PPO_Agent:
                 break
 
     def wrap_env(self, env):
+        # mirrors CleanRL's atari wrapper stack for Mario Kart
+        # MaxAndSkipEnv, FrameStack -- CleanRL
         if self.verbose:
             env = DebugObservation(env)
 

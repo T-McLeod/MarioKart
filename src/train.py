@@ -60,6 +60,8 @@ def main():
         epsilon_decay=0.99999
     )"""
 
+
+    #Used AI to help pick hyperparameters for training 
     agent = PPO_Agent(
         env,
         learning_rate=5e-5,
