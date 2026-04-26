@@ -192,8 +192,9 @@ The PPO agents fell victim to the **"Frozen Agent"** syndrome significantly earl
 We evaluated Circuit_M-trained models on Circuit4_M (a track neither
 agent trained on) to test transfer of learned driving skills.
 
-**DQN generalisation:** 
 ![OOD Video](extra_files/OOD_Video.gif)
+
+**DQN generalisation:** 
 Strong in-distribution performance (6632 avg
 return at ep 2750) collapsed almost completely on Circuit4_M (-110 avg
 return at ep 2750, 50/50 stuck_early). The exception was ep 2500 which
