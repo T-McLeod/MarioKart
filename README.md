@@ -53,7 +53,7 @@ respective tracks. Full raw data in `eval_results/eval_log.csv`.
 | ep 1750 | 5861.4 | 2397.8 | 125.6 | 1427.6 |
 | ep 2000 | 6538.2 | 1633.1 | 139.1 | 1442.0 |
 | ep 2250 | 6516.0 | 1765.6 | 138.6 | 1280.5 |
-| ep 2500 | -110.0 | 0.0 | -1.0 | 300.0 |
+| ep 2500 | 5435.1 | 2556.7 | 118.5 | 1155.6 |
 | ep 2750 | 6632.4 | 1647.4 | 142.1 | 1270.5 |
 | ep 3000 | 6255.6 | 1987.2 | 136.0 | 1267.0 |
 
@@ -192,7 +192,9 @@ The PPO agents fell victim to the **"Frozen Agent"** syndrome significantly earl
 We evaluated Circuit_M-trained models on Circuit4_M (a track neither
 agent trained on) to test transfer of learned driving skills.
 
-**DQN generalisation:** Strong in-distribution performance (6632 avg
+**DQN generalisation:** 
+![OOD Video](extra_files\OOD_Video.gif)
+Strong in-distribution performance (6632 avg
 return at ep 2750) collapsed almost completely on Circuit4_M (-110 avg
 return at ep 2750, 50/50 stuck_early). The exception was ep 2500 which
 achieved 223.9 OOD avg return despite 0.0 in-distribution return —
@@ -200,6 +202,8 @@ an anomalous checkpoint where the policy happened to generalise better.
 This indicates DQN learned track-specific Q-values rather than
 transferable driving behavior.
 ![DQN OOD Generalisation](eval_results/dqn_ood_generalisation.png)
+
+One particularly interesting point is how it still tries to drive circuit 4 the same way it drives circuit 1, by turning left on turn 1 and then trying to drive it like a straight away instead of a u-turn.
 
 **PPO generalisation:** More consistent but weaker. PPO Circuit_M at
 ep 500 retained 55% of its in-distribution return on Circuit4_M
