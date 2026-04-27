@@ -12,7 +12,9 @@
 The project uses `stable-retro` to interface with the emulator. Simply placing the file in the folder isn't enough; the library needs to "import" it into its internal database.
 
 ### 1. ROM Placement
-Place your `rom.sfc` (or `Super Mario Kart (USA).sfc`) in the root of the project or a dedicated `/roms` folder. 
+Place your `rom.sfc` (or `Super Mario Kart (USA).sfc`) in the root of the project or a dedicated `/roms` folder.
+
+Note: ROM is not provided in the repo, must find online.
 
 ### 2. Import to stable-retro
 Run the following command to let the library detect and hash the ROM. This ensures the game is recognized by the Gymnasium environment:

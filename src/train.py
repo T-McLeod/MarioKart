@@ -39,7 +39,7 @@ def plot_and_save(plot_episodes, avg_returns, avg_lengths, out_dir="plots"):
 
 def main():
     checkpoint_prefix = "models/mario_cluster_ckpt" + f"_{cfg.state}"
-    episode_suffix = ""
+    episode_suffix = "500"
 
     env = stable_retro.make(
         game=GAME_NAME,
