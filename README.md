@@ -277,6 +277,13 @@ after each large reward event.
 
 ---
 
+### Reward Function Justification
+Our reward system is broken down into 3 "tiers" to create a dense and effective learning environment:
+- Tier 1: Lap Reward (+1000): This is our top tier, rewarding the agent for its primary goal of finishing laps. Because we use a discount factor, the agent is inherently incentivized to finish as fast as possible. (Found at wrapper.py, Line 168)
+- Tier 2: Checkpoint Reward (+10): Along each track are invisible checkpoints registered by the game. We pull this data directly from RAM. It is not enough to solely reward lap completion, as the agent needs intermediate steps to learn forward progress. Rewarding points per checkpoint (approx. 15-40 per lap) bridges this gap. (Found at script.lua, Line 51)
+- Tier 3: Speed & Bleed Reward (+0.1 to 0.3 / -0.05): To provide a dense reward environment, we reward the agent for reaching discrete speed thresholds. This implicitly teaches the agent that going off-road or hitting walls is bad because it kills momentum. We prioritize this below checkpoints and laps. We also add a constant "bleed" punishment of -0.05 per frame to disincentivize sitting idle and encourage faster episode completion. (Speed logic at script.lua, Line 78; Integration function at script.lua, Line 122)
+---
+
 ### Design Decision: DQN vs PPO
 We developed both DQN and PPO to directly compare off-policy vs
 on-policy learning on the same task. Contrary to our initial hypothesis
