@@ -24,7 +24,7 @@ python test.py
 
 ## Video Links
 - 🎮 [Demo Video](https://drive.google.com/file/d/1NOCF5jBTGUE8oJ1EbTIFE4wct0Q7VcU1/view?usp=sharing)
-- 🔧 [Technical Walkthrough](YOUR_LINK_HERE)
+- 🔧 [Technical Walkthrough](https://drive.google.com/file/d/1Z8Kgt-FOeFAkqyzWi9c0YYPoZgE0_m8W/view?usp=sharing)
 
 ## Evaluation
 
