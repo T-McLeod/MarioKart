@@ -136,12 +136,11 @@ Below is a breakdown of the primary failure cases identified during the training
 **2. The "Frozen" Agent (Negative Reward Avoidance)**
 * **Description:** Despite reaching late-stage training, some agents would abruptly cease all movement. 
 * **Analysis:** This phenomenon usually followed a sharp decline in mean rewards. It is a classic example of a **local optimum** caused by our penalty structure. Because wall collisions carried a heavy negative weight, the agent mathematically determined that the "safest" way to minimize loss, if it could not guarantee a clean line through a turn, was to remain perfectly stationary. In its "view," zero reward was preferable to the guaranteed negative reward of a collision.
-*insert picture*
 
 **3. Recovery Deadlocks (Action Space Constraints)**
 * **Description:** Even high-performing agents occasionally became permanently lodged behind environmental obstacles, such as pipes or corners.
 * **Analysis:** This failure is not a failure of the model’s "intelligence," but rather a **State-Action Bottleneck**. We observed agents stuck behind pipes where the only solution was to reverse. However, to keep the model's complexity manageable, we did not include a "Reverse" action in the discrete action space. The agent was effectively trapped in a **dead-end state**: driving forward caused a penalty, and staying still yielded zero progress. Without a "Back Up" option, the agent had no valid trajectory to escape.
-*insert picture*
+![Deadlock Picture](extra_files/error_case.png)
 
 **4. The Performance "Ceiling" (Mechanical Bottlenecks)**
 * **Description:** We observed a hard cap on lap times; regardless of extended training duration or hyperparameter tuning, the agent could not break certain time barriers.
