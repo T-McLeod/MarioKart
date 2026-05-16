@@ -193,13 +193,10 @@ class PPO_Agent:
 
 
     def update(self, state, action, reward, next_state, done):
-        #buffer here and trigger update when rollout is full
-        processed_reward = self._process_reward(reward)
-
         self._rb_states.append(state)
         self._rb_actions.append(action)
         self._rb_log_probs.append(self._cached_log_prob)
-        self._rb_rewards.append(float(processed_reward))
+        self._rb_rewards.append(float(reward))
         self._rb_values.append(float(self._cached_value))
         self._rb_dones.append(float(done))
 
