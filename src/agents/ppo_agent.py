@@ -15,6 +15,7 @@ from ..wrapper import (
     EarlyTermination,
     SpeedReward,
     CompleteLapReward,
+    RewardScaling,
 )
 
 
@@ -190,24 +191,6 @@ class PPO_Agent:
 
         return action_t.item()
 
-    def _process_reward(self, reward):
-        """
-        PPO-only internal reward processing — original, not in CleanRL.
-        CleanRL clips to {-1, 0, 1}; we use log-transform to prevent
-        gradient shock from the +1000 lap reward while preserving scale.
-        Scale factors tuned across two training iterations.
-        """
-
-        # Lap completion or other huge reward
-        if abs(reward) >= 500:
-            return 5.0 * np.sign(reward) * np.log1p(abs(reward))
-
-        # Stuck / early termination penalty
-        if reward <= -4:
-            return 3.0 * reward
-
-        # Normal checkpoint / speed / small shaping reward
-        return 10.0 * np.sign(reward) * np.log1p(abs(reward))
 
     def update(self, state, action, reward, next_state, done):
         #buffer here and trigger update when rollout is full
@@ -387,6 +370,8 @@ class PPO_Agent:
         env = SpeedReward(env, scale=0.0001)
         env = CompleteLapReward(env)
 
+        env = RewardScaling(env, scale=0.01)  # PPO-specific reward scaling
+
         return env
 
     def save_checkpoint(self, filepath, episode):
@@ -425,3 +410,5 @@ class PPO_Agent:
         )
 
         return resume_episode
+    
+
