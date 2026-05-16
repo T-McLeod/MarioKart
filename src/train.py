@@ -138,7 +138,7 @@ def main():
     agent.save_checkpoint(checkpoint_prefix + f"_final", cfg.n_episodes)
 
 if __name__ == "__main__":
-    custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
+    custom_path = os.path.abspath("custom_integrations")
     stable_retro.data.Integrations.add_custom_path(custom_path)
 
     main()

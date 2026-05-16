@@ -43,14 +43,14 @@ def main():
     )
 
     total_timesteps = 3_000_000
-    rollout_steps = 2048
+    rollout_steps = 8192
 
     agent = PPO_Agent(
         env,
         learning_rate=5e-5,
         rollout_steps=rollout_steps,
-        minibatch_size=256,
-        n_epochs=4,
+        minibatch_size=1024,
+        n_epochs=2,
         ent_coef_start=0.03,
         ent_coef_end=0.01,
         gae_lambda=0.95,
@@ -141,7 +141,7 @@ def main():
     agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates)
 
 if __name__ == "__main__":
-    custom_path = os.path.join(SCRIPT_DIR, "custom_integrations")
+    custom_path = os.path.abspath("custom_integrations")
     stable_retro.data.Integrations.add_custom_path(custom_path)
 
     main()
