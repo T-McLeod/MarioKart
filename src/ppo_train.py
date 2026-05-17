@@ -62,7 +62,9 @@ def main():
     
     # We load based on global updates instead of episodes now
     # Using 'latest' or a specific update number if you want to resume
-    # start_update = agent.load_checkpoint(checkpoint_prefix + "_latest")
+    start_update = 0
+    if start_update > 0:
+        start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
     
     env = agent.wrap_env(env)
 
@@ -115,6 +117,7 @@ def main():
             avg_length = np.mean(episode_lengths[-10:])
             print(f"    Avg Return (last 10 eps): {avg_return:.2f}")
             print(f"    Avg Length (last 10 eps): {avg_length:.2f}")
+            print(f"    Entropy: {current_ent_coef:.4f}")
 
             # Record and redraw the training curve
             plot_steps.append(global_step)

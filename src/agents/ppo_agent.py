@@ -390,8 +390,7 @@ class PPO_Agent:
         print(f"Attempting to load checkpoint from {model_path}...")
 
         if not os.path.exists(model_path):
-            print("No checkpoint found. Starting fresh.")
-            return 0
+            raise FileNotFoundError(f"No checkpoint found at {model_path}")
 
         checkpoint = torch.load(model_path, map_location=device)
 
