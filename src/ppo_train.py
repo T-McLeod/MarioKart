@@ -18,11 +18,21 @@ def plot_and_save(plot_steps, avg_returns, avg_lengths, out_dir="plots"):
 
     ax1.plot(plot_steps, avg_returns, color="steelblue", linewidth=1.5)
     ax1.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+    if len(avg_returns) > 0:
+        y_min, y_max = min(avg_returns), max(avg_returns)
+        margin = max((y_max - y_min) * 0.05, 1.0)
+        ax1.set_ylim(y_min - margin, y_max + margin)
+    
     ax1.set_ylabel("Avg Return")
     ax1.set_title("PPO Training Curve — Super Mario Kart")
     ax1.grid(True, alpha=0.3)
 
     ax2.plot(plot_steps, avg_lengths, color="darkorange", linewidth=1.5)
+    if len(avg_lengths) > 0:
+        y_min, y_max = min(avg_lengths), max(avg_lengths)
+        margin = max((y_max - y_min) * 0.05, 1.0)
+        ax2.set_ylim(y_min - margin, y_max + margin)
+        
     ax2.set_xlabel("Global Step")
     ax2.set_ylabel("Avg Episode Length")
     ax2.grid(True, alpha=0.3)
