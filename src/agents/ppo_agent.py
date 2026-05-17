@@ -365,7 +365,7 @@ class PPO_Agent:
         # Same wrapper rewards as DQN for fair environment comparison.
         env = EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5)
         env = SpeedReward(env, scale=0.0001)
-        env = CompleteLapReward(env)
+        # env = CompleteLapReward(env)
 
         env = RewardScaling(env, scale=0.01)  # PPO-specific reward scaling
 
