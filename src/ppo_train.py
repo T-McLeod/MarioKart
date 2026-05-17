@@ -42,7 +42,7 @@ def main():
         inttype=stable_retro.data.Integrations.ALL
     )
 
-    total_timesteps = 3_000_000
+    total_timesteps = 10_000_000
     rollout_steps = 8192
 
     agent = PPO_Agent(
@@ -62,7 +62,7 @@ def main():
     
     # We load based on global updates instead of episodes now
     # Using 'latest' or a specific update number if you want to resume
-    start_update = 0
+    start_update = 650
     if start_update > 0:
         start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
     
@@ -71,12 +71,13 @@ def main():
     # Tracking metrics
     episode_returns = []
     episode_lengths = []
+    episode_finished = []
     plot_steps = []
     plot_avg_returns = []
     plot_avg_lengths = []
 
     global_step = agent.steps
-    num_updates = (total_timesteps // rollout_steps) - start_update
+    num_updates = (total_timesteps // rollout_steps)
 
     state, info = env.reset()
     episode_return = 0
@@ -99,9 +100,13 @@ def main():
             agent.update(state, action, reward, next_state, terminated or truncated)
 
             if terminated or truncated:
+                lap = info.get("lap", 128) - 128
+                is_finished = lap >= 5
+                
                 state, info = env.reset()
                 episode_returns.append(episode_return)
                 episode_lengths.append(episode_length)
+                episode_finished.append(is_finished)
                 episode_return = 0
                 episode_length = 0
             else:
@@ -114,11 +119,24 @@ def main():
             # Average over the last 10 episodes
             avg_return = np.mean(episode_returns[-10:])
             avg_length = np.mean(episode_lengths[-10:])
+            
+            recent_finished = episode_finished[-10:]
+            finish_pct = np.mean(recent_finished) * 100 if len(recent_finished) > 0 else 0.0
+            
+            recent_lengths = episode_lengths[-10:]
+            finish_times = [length for length, fin in zip(recent_lengths, recent_finished) if fin]
+            avg_finish_time = np.mean(finish_times) if len(finish_times) > 0 else 0.0
+            
             progress = min(agent.steps / agent.total_timesteps, 1.0)
             current_ent_coef = agent.ent_coef_start + progress * (agent.ent_coef_end - agent.ent_coef_start)
 
             print(f"    Avg Return (last 10 eps): {avg_return:.2f}")
             print(f"    Avg Length (last 10 eps): {avg_length:.2f}")
+            print(f"    Finish Pct (last 10 eps): {finish_pct:.1f}%")
+            if len(finish_times) > 0:
+                print(f"    Avg Finish Time (last 10 eps): {avg_finish_time:.2f} steps")
+            else:
+                print(f"    Avg Finish Time (last 10 eps): N/A")
             print(f"    Entropy: {current_ent_coef:.4f}")
 
             # Record and redraw the training curve
