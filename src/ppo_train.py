@@ -76,8 +76,7 @@ def main():
     plot_avg_lengths = []
 
     global_step = agent.steps
-    num_updates = total_timesteps // rollout_steps
-    start_update = global_step // rollout_steps
+    num_updates = (total_timesteps // rollout_steps) - start_update
 
     state, info = env.reset()
     episode_return = 0
@@ -115,6 +114,9 @@ def main():
             # Average over the last 10 episodes
             avg_return = np.mean(episode_returns[-10:])
             avg_length = np.mean(episode_lengths[-10:])
+            progress = min(agent.steps / agent.total_timesteps, 1.0)
+            current_ent_coef = agent.ent_coef_start + progress * (agent.ent_coef_end - agent.ent_coef_start)
+
             print(f"    Avg Return (last 10 eps): {avg_return:.2f}")
             print(f"    Avg Length (last 10 eps): {avg_length:.2f}")
             print(f"    Entropy: {current_ent_coef:.4f}")
@@ -129,7 +131,6 @@ def main():
             agent.record_return(avg_return)
             if agent.should_stop:
                 print("Stopping training early.")
-                agent.save_checkpoint(checkpoint_prefix + f"_early_stop", update)
                 break
         else:
             print("    No episodes completed yet.")
