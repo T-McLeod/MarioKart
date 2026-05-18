@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import numpy as np
+import uuid
 from gymnasium.wrappers import FrameStackObservation
 
 from ..wrapper import (
@@ -373,16 +374,19 @@ class PPO_Agent:
 
     def save_checkpoint(self, filepath, episode):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        ckpt_hash = uuid.uuid4().hex[:8]
 
         checkpoint = {
             "episode": episode,
             "steps": self.steps,
             "ac_net_state": self.ac_net.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
+            "hash": ckpt_hash,
         }
 
         torch.save(checkpoint, f"{filepath}_model.pth")
         print(f"Checkpoint successfully saved at Episode {episode}.")
+        return ckpt_hash
 
     def load_checkpoint(self, filepath):
         model_path = f"{filepath}_model.pth"
@@ -399,12 +403,13 @@ class PPO_Agent:
         self.steps = checkpoint.get("steps", 0)
 
         resume_episode = checkpoint["episode"]
+        ckpt_hash = checkpoint.get("hash", None)
 
         print(
             f"Successfully resumed from Episode {resume_episode} "
             f"with {self.steps} total steps."
         )
 
-        return resume_episode
+        return resume_episode, ckpt_hash
     
 
