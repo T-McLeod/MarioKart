@@ -39,6 +39,36 @@ SIMPLE_ACTIONS = [
     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # brake
 ]
 
+DISCOVERY_ACTIONS = [
+    # --- The Basics (4) ---
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: Idle / Coasting
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1: Gas
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 2: Gas + Left
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 3: Gas + Right
+
+    # --- Braking & Correction (3) ---
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4: Brake / Reverse
+    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 5: Brake + Left (Sharp correction)
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 6: Brake + Right
+
+    # --- Advanced Physics: Drifting (3) ---
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7: Gas + Hop (Initiate Drift)
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],  # 8: Gas + Left + Drift (Tight Corner)
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],  # 9: Gas + Right + Drift
+
+    # --- Combat & Item Usage (3) ---
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # 10: Gas + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 11: Gas + Left + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 12: Gas + Right + Item
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 13: Gas + Drift + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 14: Gas + Left + Drift + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],  # 15: Gas + Right + Drift + Item
+
+    # --- The "Weird" Combos (2) ---
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake 
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
+]
+
 
 
 # architecture adapted from CleanRL ppo_atari.py Agent
@@ -140,7 +170,7 @@ class PPO_Agent:
         self.intervals_without_improvement = 0
         self.should_stop = False
 
-        self.action_set = SIMPLE_ACTIONS
+        self.action_set = DISCOVERY_ACTIONS
         self.num_actions = len(self.action_set)
 
         self.ac_net = ActorCritic(self.num_actions).to(device)

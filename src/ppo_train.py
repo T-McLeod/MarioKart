@@ -42,7 +42,7 @@ def plot_and_save(plot_steps, avg_returns, avg_lengths, out_dir="plots"):
     plt.close(fig)
 
 def main():
-    checkpoint_prefix = "models/ppo_mario_ckpt" + f"_{cfg.state}"
+    checkpoint_prefix = "models/ppo_discovery_ckpt" + f"_{cfg.state}"
     
     env = stable_retro.make(
         game=GAME_NAME,
@@ -72,7 +72,7 @@ def main():
     
     # We load based on global updates instead of episodes now
     # Using 'latest' or a specific update number if you want to resume
-    start_update = 650
+    start_update = 0
     if start_update > 0:
         start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
     

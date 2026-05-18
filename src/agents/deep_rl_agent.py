@@ -50,10 +50,13 @@ DISCOVERY_ACTIONS = [
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # 10: Gas + Item
     [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 11: Gas + Left + Item
     [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 12: Gas + Right + Item
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 13: Gas + Drift + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 14: Gas + Left + Drift + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],  # 15: Gas + Right + Drift + Item
 
     # --- The "Weird" Combos (2) ---
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13: Gas + Brake (Burnout/Traction loss)
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 14: Brake + Hop (Emergency stop turn)
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake 
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
 ]
 
 
