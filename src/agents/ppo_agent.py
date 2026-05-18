@@ -15,6 +15,7 @@ from ..wrapper import (
     EarlyTermination,
     SpeedReward,
     CompleteLapReward,
+    RewardScaling,
 )
 
 
@@ -190,33 +191,12 @@ class PPO_Agent:
 
         return action_t.item()
 
-    def _process_reward(self, reward):
-        """
-        PPO-only internal reward processing — original, not in CleanRL.
-        CleanRL clips to {-1, 0, 1}; we use log-transform to prevent
-        gradient shock from the +1000 lap reward while preserving scale.
-        Scale factors tuned across two training iterations.
-        """
-
-        # Lap completion or other huge reward
-        if abs(reward) >= 500:
-            return 5.0 * np.sign(reward) * np.log1p(abs(reward))
-
-        # Stuck / early termination penalty
-        if reward <= -4:
-            return 3.0 * reward
-
-        # Normal checkpoint / speed / small shaping reward
-        return 10.0 * np.sign(reward) * np.log1p(abs(reward))
 
     def update(self, state, action, reward, next_state, done):
-        #buffer here and trigger update when rollout is full
-        processed_reward = self._process_reward(reward)
-
         self._rb_states.append(state)
         self._rb_actions.append(action)
         self._rb_log_probs.append(self._cached_log_prob)
-        self._rb_rewards.append(float(processed_reward))
+        self._rb_rewards.append(float(reward))
         self._rb_values.append(float(self._cached_value))
         self._rb_dones.append(float(done))
 
@@ -385,7 +365,9 @@ class PPO_Agent:
         # Same wrapper rewards as DQN for fair environment comparison.
         env = EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5)
         env = SpeedReward(env, scale=0.0001)
-        env = CompleteLapReward(env)
+        # env = CompleteLapReward(env)
+
+        env = RewardScaling(env, scale=0.01)  # PPO-specific reward scaling
 
         return env
 
@@ -408,8 +390,7 @@ class PPO_Agent:
         print(f"Attempting to load checkpoint from {model_path}...")
 
         if not os.path.exists(model_path):
-            print("No checkpoint found. Starting fresh.")
-            return 0
+            raise FileNotFoundError(f"No checkpoint found at {model_path}")
 
         checkpoint = torch.load(model_path, map_location=device)
 
@@ -425,3 +406,5 @@ class PPO_Agent:
         )
 
         return resume_episode
+    
+

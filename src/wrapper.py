@@ -193,3 +193,24 @@ class CompleteLapReward(gym.Wrapper):
         
 
         return obs, reward, terminated, truncated, info
+    
+
+class RewardScaling(gym.Wrapper):
+    """
+    Scales all rewards by a constant factor. This can help stabilize training for PPO by keeping rewards in a more manageable range.
+    DQN typically doesn't require reward scaling, so this wrapper is intended for PPO only.
+
+    Args:
+        scale: The factor by which to multiply all rewards (default 0.1 reduces reward magnitude to 10%).
+    """
+    def __init__(self, env, scale=0.01):
+        super().__init__(env)
+        self.scale = scale
+    
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        reward *= self.scale
+        return obs, reward, terminated, truncated, info
