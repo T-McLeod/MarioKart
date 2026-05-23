@@ -14,4 +14,8 @@ pandas
 
 # Deep Learning
 # Note: Removed local NVIDIA/CUDA bindings to let the cluster use its own
-torch
+# Removed torch because it is already pre-installed in the pytorch/pytorch base image
+
+# MLOps & Video
+wandb
+moviepy

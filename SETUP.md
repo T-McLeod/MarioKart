@@ -12,17 +12,12 @@
 The project uses `stable-retro` to interface with the emulator. Simply placing the file in the folder isn't enough; the library needs to "import" it into its internal database.
 
 ### 1. ROM Placement
-Place your `rom.sfc` (or `Super Mario Kart (USA).sfc`) in the root of the project or a dedicated `/roms` folder.
+Place your `Super Mario Kart (USA).sfc` directly into the custom integrations directory:
+`custom_integrations/SuperMarioKart-Snes/rom.sfc`
 
-Note: ROM is not provided in the repo, must find online.
+> **Note:** The ROM file must be named `rom.sfc`. This pairs it perfectly with the custom states and scenarios already defined in that folder.
 
-### 2. Import to stable-retro
-Run the following command to let the library detect and hash the ROM. This ensures the game is recognized by the Gymnasium environment:
-
-```bash
-# This scans the current directory and imports any valid ROMs found
-python -m retro.import .
-```
+That's it! You no longer need to run any manual `retro.import` scripts. The training script uses `add_custom_path` to instantly and automatically detect your ROM and configurations on boot.
 
 > **Note:** If successful, you should see a message stating: `Importing SuperMarioKart-Snes`.
 
@@ -50,19 +45,54 @@ MK_DEBUG_OBSERVATION=1
 
 ## Installation & Execution
 
-### 1. Install Dependencies
+### Option 1: Docker (Recommended)
+
+1. **Build the Docker Image:**
+   ```powershell
+   docker build -t mariokart-rl .
+   ```
+
+2. **Run Training in Docker:**
+   Execute the container and mount your local directory so changes and checkpoints are synced. You must set your `WANDB_API_KEY`.
+   
+   To start a brand new run (auto-generates a human-readable name in W&B):
+   ```powershell
+   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.ppo_train
+   ```
+
+   To name your run (or auto-resume from the highest checkpoint if the name exists):
+   ```powershell
+   docker run -it --rm \
+    -e PYTHONUNBUFFERED=1 \
+    -e WANDB_API_KEY=YOUR_WANDB_API_KEY \
+    -v "${PWD}:/workspace/MarioKart" \
+    mariokart-rl python -u -m src.ppo_train --name "my-cool-run"
+   ```
+
+   To force-load a specific checkpoint (e.g., update 50):
+   ```powershell
+   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.ppo_train --name "my-cool-run" --checkpoint 50
+   ```
+
+   **Overriding Hyperparameters:**
+   You can override the default PPO hyperparameters by appending them as flags (e.g., `--learning-rate 3e-4`, `--rollout-steps 2048`). Use `python -m src.ppo_train --help` to see all available flags.
+   > **Important:** Hyperparameters are securely tethered to your W&B cloud config! You **cannot** pass new hyperparameter flags if you are resuming an existing run (the script will throw an error to protect your run consistency).
+
+
+### Option 2: Local Python Environment
+
 It is highly recommended to use a virtual environment or Conda (especially on WSL):
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Training the Agent
-To start a new training run or resume from the last checkpoint:
+To start a new training run:
 ```bash
-python -m src.train
+python -m src.ppo_train
 ```
+*(You can append `--name` and `--checkpoint` flags exactly as shown in the Docker instructions).*
 
-### 3. Evaluation & Visualization
+### Evaluation & Visualization
 To watch your trained agent drive or run quantitative tests:
 ```bash
 python -m src.test
