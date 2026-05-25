@@ -79,3 +79,5 @@ roms/
 
 models/
 plots/
+wandb/
+videos/

@@ -1,0 +1,9 @@
+wandb/
+__pycache__/
+videos/
+models/
+logs/
+.git/
+*.mp4
+*.pth
+*.pkl

@@ -211,29 +211,35 @@ class PPO_Agent:
             self.should_stop = True
 
     def action_select(self, state):
-        # this is so it works with same train since episodic 
-        state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+        # state is batched (num_envs, 4, 84, 84) or unbatched (4, 84, 84)
+        is_single = len(state.shape) == 3
+        if is_single:
+            state = np.expand_dims(state, axis=0)
+            
+        state_t = torch.tensor(state, dtype=torch.float32).to(device)
 
         with torch.no_grad():
             action_t, log_prob_t, _, value_t = self.ac_net.get_action_and_value(state_t)
 
-        self._cached_log_prob = log_prob_t.item()
-        self._cached_value = value_t.item()
+        self._cached_log_prob = log_prob_t.cpu().numpy()
+        self._cached_value = value_t.view(-1).cpu().numpy()
 
-        return action_t.item()
+        actions = action_t.cpu().numpy()
+        return actions[0] if is_single else actions
 
 
     def update(self, state, action, reward, next_state, done):
         self._rb_states.append(state)
         self._rb_actions.append(action)
         self._rb_log_probs.append(self._cached_log_prob)
-        self._rb_rewards.append(float(reward))
-        self._rb_values.append(float(self._cached_value))
-        self._rb_dones.append(float(done))
+        self._rb_rewards.append(np.array(reward, dtype=np.float32))
+        self._rb_values.append(self._cached_value)
+        self._rb_dones.append(np.array(done, dtype=np.float32))
 
-        self.steps += 1
+        num_envs = len(state)
+        self.steps += num_envs
 
-        if len(self._rb_states) >= self.rollout_steps:
+        if len(self._rb_states) * num_envs >= self.rollout_steps:
             self._ppo_update(next_state, done)
             self._init_rollout_buffer()
 
@@ -256,23 +262,23 @@ class PPO_Agent:
             last_state_t = torch.tensor(
                 last_next_state,
                 dtype=torch.float32,
-            ).unsqueeze(0).to(device)
+            ).to(device)
 
             _, _, _, last_value_t = self.ac_net.get_action_and_value(last_state_t)
-            last_value = last_value_t.item()
+            last_value = last_value_t.view(-1).cpu().numpy()
 
         rewards = np.array(self._rb_rewards, dtype=np.float32)
         values = np.array(self._rb_values, dtype=np.float32)
         dones = np.array(self._rb_dones, dtype=np.float32)
 
         T = len(rewards)
-        advantages = np.zeros(T, dtype=np.float32)
-        last_gae = 0.0
+        advantages = np.zeros_like(rewards, dtype=np.float32)
+        last_gae = np.zeros_like(last_value, dtype=np.float32)
 
         #GAE — CleanRL
         for t in reversed(range(T)):
             if t == T - 1:
-                non_terminal = 1.0 - float(last_done)
+                non_terminal = 1.0 - np.array(last_done, dtype=np.float32)
                 next_value = last_value
             else:
                 non_terminal = 1.0 - dones[t]
@@ -291,28 +297,26 @@ class PPO_Agent:
         returns = advantages + values  #CleanRL
 
         # flatten buffer to tensors — CleanRL "flatten the batch"
-        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).to(device)
-        b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device)
-        b_old_log_probs = torch.tensor(
-            np.array(self._rb_log_probs),
-            dtype=torch.float32,
-        ).to(device)
-        b_advantages = torch.tensor(advantages, dtype=torch.float32).to(device)
-        b_returns = torch.tensor(returns, dtype=torch.float32).to(device)
-        b_old_values = torch.tensor(values, dtype=torch.float32).to(device)
+        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).to(device).view(-1, 4, 84, 84)
+        b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device).view(-1)
+        b_old_log_probs = torch.tensor(np.array(self._rb_log_probs), dtype=torch.float32).to(device).view(-1)
+        b_advantages = torch.tensor(advantages, dtype=torch.float32).to(device).view(-1)
+        b_returns = torch.tensor(returns, dtype=torch.float32).to(device).view(-1)
+        b_old_values = torch.tensor(values, dtype=torch.float32).to(device).view(-1)
 
         # advantage normalization — CleanRL norm_adv=True
         b_advantages = (b_advantages - b_advantages.mean()) / (
             b_advantages.std() + 1e-8
         )
 
-        indices = np.arange(T)
+        batch_size = rewards.size
+        indices = np.arange(batch_size)
 
         for _ in range(self.n_epochs):
             np.random.shuffle(indices)
             stop_epoch_early = False
 
-            for start in range(0, T, self.minibatch_size):
+            for start in range(0, batch_size, self.minibatch_size):
                 mb_idx = indices[start:start + self.minibatch_size]
 
                 _, new_log_probs, entropy, new_values = self.ac_net.get_action_and_value(

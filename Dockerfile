@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgl1-mesa-glx \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy your exported Conda dependencies into the container
@@ -20,9 +21,9 @@ COPY requirements.txt .
 # Install Python packages (using --no-cache-dir keeps the image size small)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your Mario Kart repository code into the container
 COPY . .
 
+ENV PYTHONUNBUFFERED=1
+
 # Set the default command to launch your training script
-# (Update 'train.py' if your main script has a different name, like 'main.py' or 'run.py')
-CMD ["python", "train.py"]
+CMD ["python", "-u", "-m", "src.ppo_train"]

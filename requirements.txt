@@ -2,10 +2,11 @@
 gymnasium
 stable-retro
 stable_baselines3
+wandb==0.16.6
+numpy<2
 
 # Computer Vision & Math
-opencv-python
-numpy
+opencv-python-headless
 
 # Logging & Visualization
 tensorboard
@@ -14,4 +15,7 @@ pandas
 
 # Deep Learning
 # Note: Removed local NVIDIA/CUDA bindings to let the cluster use its own
-torch
+# Removed torch because it is already pre-installed in the pytorch/pytorch base image
+
+# MLOps & Video
+moviepy
