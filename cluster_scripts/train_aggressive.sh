@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=mk_aggressive
+#SBATCH --output=mk_aggressive_%j.out      
+#SBATCH --error=mk_aggressive_%j.err       
+#SBATCH --partition=compsci-gpu               
+#SBATCH --gres=gpu:1                  
+#SBATCH --mem=32G                     
+#SBATCH --cpus-per-task=4             
+#SBATCH --time=24:00:00               
+# Navigate to your CS scratch space
+cd /usr/project/xtmp/tm419/
+# Require WANDB_API_KEY to be set in the environment before submission
+if [ -z "$WANDB_API_KEY" ]; then
+    echo "Error: WANDB_API_KEY is not set. Please export it before running sbatch."
+    exit 1
+fi
+export APPTAINERENV_PYTHONUNBUFFERED=1
+export APPTAINERENV_PYTHONNOUSERSITE=1
+# Create output directories on the host so they can be bound
+mkdir -p models videos wandb
+# Run the container, binding only the output folders so the internal code is preserved
+apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.ppo_train --name \"aggressive-learner-v3\" --learning-rate 0.0002 --clip-coef 0.2 --n-epochs 4 --total-timesteps 50000000 --no-improve-tolerance 999999 & wait"

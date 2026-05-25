@@ -30,6 +30,7 @@ def main():
         resume="allow", 
         config=wandb_config
     )
+    print("WANDB INIT DONE - PROCEEDING TO ENV SETUP", flush=True)
 
     if wandb.run.resumed:
         if provided_hyperparams:
@@ -81,7 +82,7 @@ def main():
                     env, 
                     video_folder="videos/", 
                     episode_trigger=lambda ep: ep % video_freq == 0,
-                    name_prefix="ppo-mariokart"
+                    name_prefix=f"{run_name}"
                 )
             return env
         return _init
@@ -99,6 +100,7 @@ def main():
 
     global_step = agent.steps
     num_updates = (total_timesteps // rollout_steps)
+    last_logged_video = None
 
     state, info = envs.reset()
     episode_returns = np.zeros(num_envs)
@@ -167,21 +169,23 @@ def main():
         
         # We can grab W&B video automatically if monitor_gym was used, or we log manually if file exists
         # RecordVideo creates videos in videos/ folder. We upload the most recent one if it's new.
-        videos = [f for f in os.listdir("videos/") if f.endswith(".mp4")] if os.path.exists("videos/") else []
+        videos = [f for f in os.listdir("videos/") if f.endswith(".mp4") and f.startswith(run_name)] if os.path.exists("videos/") else []
         if videos:
             latest_video = sorted(videos, key=lambda x: os.path.getmtime(os.path.join("videos/", x)))[-1]
-            video_path = os.path.join("videos/", latest_video)
-            # Add to metrics
-            metrics["gameplay_video"] = wandb.Video(video_path, format="mp4")
+            if latest_video != last_logged_video:
+                video_path = os.path.join("videos/", latest_video)
+                # Add to metrics
+                metrics["gameplay_video"] = wandb.Video(video_path, format="mp4")
+                last_logged_video = latest_video
 
         wandb.log(metrics)
 
         if update % 50 == 0:
             print(f"Saving checkpoint at update {update}...")
-            ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update, hyperparams=hyperparams)
+            ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
 
     print("Training complete. Saving final checkpoint...")
-    agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates, hyperparams=hyperparams)
+    agent.save_checkpoint(checkpoint_prefix + f"_final")
     envs.close()
     wandb.finish()
 

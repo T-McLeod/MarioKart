@@ -67,9 +67,10 @@ PPO_HYPERPARAMS = {
     "clip_coef": 0.1,
     "max_grad_norm": 0.5,
     "total_timesteps": 10_000_000,
-    "no_improve_tolerance": 100,
+    "no_improve_tolerance": 500,
     "num_envs": 4,
     "video_freq": 100,
+    "checkpoint_freq": 100,
 }
 
 def parse_args():
@@ -91,6 +92,7 @@ def parse_args():
     parser.add_argument("--no-improve-tolerance", type=int, default=None)
     parser.add_argument("--num-envs", type=int, default=None)
     parser.add_argument("--video-freq", type=int, default=None)
+    parser.add_argument("--checkpoint-freq", type=int, default=None)
     
     args = parser.parse_args()
     
