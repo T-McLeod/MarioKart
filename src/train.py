@@ -52,8 +52,8 @@ def main():
     agent_module_name = f"src.agents.{args.agent}.agent"
     try:
         agent_module = importlib.import_module(agent_module_name)
-    except Exception as e:
-        raise ValueError(f"Could not find or load agent module {agent_module_name}. Error: {e}")
+    except ModuleNotFoundError as e:
+        raise ValueError(f"Could not find agent module {agent_module_name}. Error: {e}") from e
 
     agent_class = None
     for name, obj in inspect.getmembers(agent_module):
