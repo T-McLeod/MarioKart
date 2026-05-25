@@ -211,7 +211,11 @@ class PPO_Agent:
             self.should_stop = True
 
     def action_select(self, state):
-        # state is batched (num_envs, 4, 84, 84)
+        # state is batched (num_envs, 4, 84, 84) or unbatched (4, 84, 84)
+        is_single = len(state.shape) == 3
+        if is_single:
+            state = np.expand_dims(state, axis=0)
+            
         state_t = torch.tensor(state, dtype=torch.float32).to(device)
 
         with torch.no_grad():
@@ -220,7 +224,8 @@ class PPO_Agent:
         self._cached_log_prob = log_prob_t.cpu().numpy()
         self._cached_value = value_t.view(-1).cpu().numpy()
 
-        return action_t.cpu().numpy()
+        actions = action_t.cpu().numpy()
+        return actions[0] if is_single else actions
 
 
     def update(self, state, action, reward, next_state, done):

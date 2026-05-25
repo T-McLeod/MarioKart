@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgl1-mesa-glx \
-    xvfb \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,8 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Fix for xvfb-run hanging (requires xauth) and Python logs buffering
-RUN apt-get update && apt-get install -y xauth && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 
 # Set the default command to launch your training script

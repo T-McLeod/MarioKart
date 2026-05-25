@@ -9,6 +9,7 @@
 #SBATCH --time=24:00:00               
 
 # Navigate to your CS scratch space
+# EDIT REQUIRED: Update the path below to point to your specific scratch space or working directory.
 cd /usr/project/xtmp/tm419/
 
 # Require WANDB_API_KEY to be set in the environment before submission
@@ -23,5 +24,5 @@ export APPTAINERENV_PYTHONNOUSERSITE=1
 # Create output directories on the host so they can be bound
 mkdir -p models videos wandb container_home
 
-# Run the container, binding only the output folders so the internal code is preserved
-apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.ppo_train --name \"high-exploration-v3\" --ent-coef-start 0.08 --ent-coef-end 0.02 --n-epochs 4 --total-timesteps 50000000 --no-improve-tolerance 999999 & wait"
+# EDIT REQUIRED: Update 'my_model.sif' in the command below to match your compiled Apptainer image name if different.
+apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.ppo_train --name \"exploration-focused-v3\" --ent-coef-start 0.05 --ent-coef-end 0.01 --total-timesteps 50000000 --no-improve-tolerance 999999 & wait"

@@ -114,6 +114,7 @@ def main():
 
     print(f"Starting PPO training from Update {start_update} to {num_updates} ({total_timesteps} total steps) with {num_envs} envs...")
     
+    assert rollout_steps % num_envs == 0, f"rollout_steps ({rollout_steps}) must be perfectly divisible by num_envs ({num_envs}) to avoid truncation!"
     steps_per_env = rollout_steps // num_envs
 
     for update in range(start_update + 1, num_updates + 1):
@@ -182,7 +183,7 @@ def main():
 
         wandb.log(metrics)
 
-        if update % 50 == 0:
+        if update % hyperparams.get("checkpoint_freq", 50) == 0:
             print(f"Saving checkpoint at update {update}...")
             ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
 
