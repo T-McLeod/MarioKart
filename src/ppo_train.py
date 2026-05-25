@@ -32,13 +32,13 @@ def load_stats(ckpt_hash):
 def save_stats(ckpt_hash, episode_returns, episode_lengths, episode_finished, plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy):
     """Save training stats to a JSON file using the checkpoint hash."""
     stats = {
-        "episode_returns": episode_returns,
-        "episode_lengths": episode_lengths,
+        "episode_returns": [float(x) for x in episode_returns],
+        "episode_lengths": [float(x) for x in episode_lengths],
         "episode_finished": [bool(x) for x in episode_finished],
-        "plot_steps": plot_steps,
-        "plot_avg_returns": plot_avg_returns,
-        "plot_avg_lengths": plot_avg_lengths,
-        "plot_entropy": plot_entropy,
+        "plot_steps": [int(x) for x in plot_steps],
+        "plot_avg_returns": [float(x) for x in plot_avg_returns],
+        "plot_avg_lengths": [float(x) for x in plot_avg_lengths],
+        "plot_entropy": [float(x) for x in plot_entropy],
     }
     stats_file = f"models/stats_{ckpt_hash}.json"
     os.makedirs(os.path.dirname(stats_file), exist_ok=True)
@@ -118,7 +118,8 @@ def main():
     # Using 'latest' or a specific update number if you want to resume
     start_update = 0
     if start_update > 0:
-        start_update, ckpt_hash = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
+        start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
+        ckpt_hash = agent.ckpt_hash
         if ckpt_hash:
             (episode_returns, episode_lengths, episode_finished, 
              plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy) = load_stats(ckpt_hash)

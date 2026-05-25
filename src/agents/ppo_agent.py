@@ -433,13 +433,13 @@ class PPO_Agent:
         self.steps = checkpoint.get("steps", 0)
 
         resume_episode = checkpoint["episode"]
-        ckpt_hash = checkpoint.get("hash", None)
+        self.ckpt_hash = checkpoint.get("hash", None)
 
         print(
             f"Successfully resumed from Episode {resume_episode} "
             f"with {self.steps} total steps."
         )
 
-        return resume_episode, ckpt_hash
+        return resume_episode
     
 
