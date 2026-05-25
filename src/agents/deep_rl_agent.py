@@ -50,10 +50,13 @@ DISCOVERY_ACTIONS = [
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # 10: Gas + Item
     [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 11: Gas + Left + Item
     [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 12: Gas + Right + Item
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 13: Gas + Drift + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 14: Gas + Left + Drift + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],  # 15: Gas + Right + Drift + Item
 
     # --- The "Weird" Combos (2) ---
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13: Gas + Brake (Burnout/Traction loss)
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 14: Brake + Hop (Emergency stop turn)
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake 
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
 ]
 
 
@@ -131,7 +134,7 @@ class Deep_RL_Agent:
         self.action_space = env.action_space
 
         # TODO: Complete initialization of networks, loss, optimizer, etc.
-        self.action_space_size = len(SIMPLE_ACTIONS)
+        self.action_space_size = len(DISCOVERY_ACTIONS)
         self.main_q = NeuralNet(self.action_space_size)
         self.target_q = NeuralNet(self.action_space_size)
         self.target_q.load_state_dict(self.main_q.state_dict())
@@ -237,7 +240,7 @@ class Deep_RL_Agent:
         env = MarioToPyTorch(env)
 
         # 4. Discrete Action Wrapper
-        action_map = [np.array(a, dtype=np.int8) for a in SIMPLE_ACTIONS]
+        action_map = [np.array(a, dtype=np.int8) for a in DISCOVERY_ACTIONS]
         env = DiscreteActionWrapper(env, action_map=action_map)
 
         # 5. (Optional) Reward Shaping or Custom Wrappers could be added here

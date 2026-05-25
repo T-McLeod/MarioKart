@@ -7,8 +7,43 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import json
+
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def load_stats(ckpt_hash):
+    """Load training stats from a JSON file using the checkpoint hash."""
+    stats_file = f"models/stats_{ckpt_hash}.json"
+    if os.path.exists(stats_file):
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+            return (
+                stats.get("episode_returns", []),
+                stats.get("episode_lengths", []),
+                stats.get("episode_finished", []),
+                stats.get("plot_steps", []),
+                stats.get("plot_avg_returns", []),
+                stats.get("plot_avg_lengths", []),
+                stats.get("plot_entropy", [])
+            )
+    return [], [], [], [], [], [], []
+
+def save_stats(ckpt_hash, episode_returns, episode_lengths, episode_finished, plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy):
+    """Save training stats to a JSON file using the checkpoint hash."""
+    stats = {
+        "episode_returns": [float(x) for x in episode_returns],
+        "episode_lengths": [float(x) for x in episode_lengths],
+        "episode_finished": [bool(x) for x in episode_finished],
+        "plot_steps": [int(x) for x in plot_steps],
+        "plot_avg_returns": [float(x) for x in plot_avg_returns],
+        "plot_avg_lengths": [float(x) for x in plot_avg_lengths],
+        "plot_entropy": [float(x) for x in plot_entropy],
+    }
+    stats_file = f"models/stats_{ckpt_hash}.json"
+    os.makedirs(os.path.dirname(stats_file), exist_ok=True)
+    with open(stats_file, 'w') as f:
+        json.dump(stats, f)
 
 def plot_and_save(plot_steps, avg_returns, avg_lengths, out_dir="plots"):
     """Save a two-panel training curve PNG every time it's called."""
@@ -42,7 +77,7 @@ def plot_and_save(plot_steps, avg_returns, avg_lengths, out_dir="plots"):
     plt.close(fig)
 
 def main():
-    checkpoint_prefix = "models/ppo_mario_ckpt" + f"_{cfg.state}"
+    checkpoint_prefix = "models/ppo_discovery_ckpt" + f"_{cfg.state}"
     
     env = stable_retro.make(
         game=GAME_NAME,
@@ -70,14 +105,6 @@ def main():
         no_improve_tolerance=100,
     )
     
-    # We load based on global updates instead of episodes now
-    # Using 'latest' or a specific update number if you want to resume
-    start_update = 650
-    if start_update > 0:
-        start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
-    
-    env = agent.wrap_env(env)
-
     # Tracking metrics
     episode_returns = []
     episode_lengths = []
@@ -85,6 +112,21 @@ def main():
     plot_steps = []
     plot_avg_returns = []
     plot_avg_lengths = []
+    plot_entropy = []
+
+    # We load based on global updates instead of episodes now
+    # Using 'latest' or a specific update number if you want to resume
+    start_update = 0
+    if start_update > 0:
+        start_update = agent.load_checkpoint(checkpoint_prefix + "_" + str(start_update))
+        ckpt_hash = agent.ckpt_hash
+        if ckpt_hash:
+            (episode_returns, episode_lengths, episode_finished, 
+             plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy) = load_stats(ckpt_hash)
+            if len(episode_returns) > 0:
+                print(f"Loaded training stats from models/stats_{ckpt_hash}.json")
+    
+    env = agent.wrap_env(env)
 
     global_step = agent.steps
     num_updates = (total_timesteps // rollout_steps)
@@ -143,16 +185,13 @@ def main():
             print(f"    Avg Return (last 10 eps): {avg_return:.2f}")
             print(f"    Avg Length (last 10 eps): {avg_length:.2f}")
             print(f"    Finish Pct (last 10 eps): {finish_pct:.1f}%")
-            if len(finish_times) > 0:
-                print(f"    Avg Finish Time (last 10 eps): {avg_finish_time:.2f} steps")
-            else:
-                print(f"    Avg Finish Time (last 10 eps): N/A")
             print(f"    Entropy: {current_ent_coef:.4f}")
 
             # Record and redraw the training curve
             plot_steps.append(global_step)
             plot_avg_returns.append(avg_return)
             plot_avg_lengths.append(avg_length)
+            plot_entropy.append(current_ent_coef)
             plot_and_save(plot_steps, plot_avg_returns, plot_avg_lengths)
 
             # Early stopping check
@@ -166,11 +205,13 @@ def main():
         # Save checkpoints periodically (e.g., every 50 updates ~ 100k steps)
         if update % 50 == 0:
             print(f"Saving checkpoint at update {update}...")
-            agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
+            ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
+            save_stats(ckpt_hash, episode_returns, episode_lengths, episode_finished, plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy)
 
     # Save final checkpoint after training completes
     print("Training complete. Saving final checkpoint...")
-    agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates)
+    final_hash = agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates)
+    save_stats(final_hash, episode_returns, episode_lengths, episode_finished, plot_steps, plot_avg_returns, plot_avg_lengths, plot_entropy)
 
 if __name__ == "__main__":
     custom_path = os.path.abspath("custom_integrations")
