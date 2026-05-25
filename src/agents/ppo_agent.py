@@ -309,13 +309,14 @@ class PPO_Agent:
             b_advantages.std() + 1e-8
         )
 
-        indices = np.arange(T)
+        batch_size = rewards.size
+        indices = np.arange(batch_size)
 
         for _ in range(self.n_epochs):
             np.random.shuffle(indices)
             stop_epoch_early = False
 
-            for start in range(0, T, self.minibatch_size):
+            for start in range(0, batch_size, self.minibatch_size):
                 mb_idx = indices[start:start + self.minibatch_size]
 
                 _, new_log_probs, entropy, new_values = self.ac_net.get_action_and_value(

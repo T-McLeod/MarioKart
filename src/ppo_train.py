@@ -183,11 +183,11 @@ def main():
 
         if update % hyperparams.get("checkpoint_freq", 50) == 0:
             print(f"Saving checkpoint at update {update}...")
-            ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
+            ckpt_hash = agent.save_checkpoint(f"{checkpoint_prefix}{update}", update)
 
 
     print("Training complete. Saving final checkpoint...")
-    agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates)
+    agent.save_checkpoint(f"{checkpoint_prefix}final", num_updates)
     envs.close()
     wandb.finish()
 
