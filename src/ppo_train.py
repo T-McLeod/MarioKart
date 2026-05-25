@@ -6,8 +6,6 @@ import os
 import wandb
 import gymnasium as gym
 
-import json
-
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
