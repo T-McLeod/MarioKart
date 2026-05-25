@@ -41,6 +41,7 @@ def save_stats(ckpt_hash, episode_returns, episode_lengths, episode_finished, pl
         "plot_entropy": plot_entropy,
     }
     stats_file = f"models/stats_{ckpt_hash}.json"
+    os.makedirs(os.path.dirname(stats_file), exist_ok=True)
     with open(stats_file, 'w') as f:
         json.dump(stats, f)
 
