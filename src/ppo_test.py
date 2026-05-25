@@ -36,7 +36,7 @@ def main():
     )
     
     # Load the trained weights
-    agent.load_checkpoint(checkpoint_prefix + f"_{update_suffix}")
+    _, _ = agent.load_checkpoint(checkpoint_prefix + f"_{update_suffix}")
     env = agent.wrap_env(env)
 
     episode_returns = []

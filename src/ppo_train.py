@@ -7,6 +7,8 @@ import wandb
 import gymnasium as gym
 import torch
 
+import json
+
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -183,6 +185,7 @@ def main():
         if update % 50 == 0:
             print(f"Saving checkpoint at update {update}...")
             ckpt_hash = agent.save_checkpoint(checkpoint_prefix + f"_{update}", update)
+
 
     print("Training complete. Saving final checkpoint...")
     agent.save_checkpoint(checkpoint_prefix + f"_final", num_updates)

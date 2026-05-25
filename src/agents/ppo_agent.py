@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import numpy as np
+import uuid
 from gymnasium.wrappers import FrameStackObservation
 
 from ..wrapper import (
@@ -37,6 +38,36 @@ SIMPLE_ACTIONS = [
     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # gas + left
     [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # gas + right
     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # brake
+]
+
+DISCOVERY_ACTIONS = [
+    # --- The Basics (4) ---
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: Idle / Coasting
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1: Gas
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 2: Gas + Left
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 3: Gas + Right
+
+    # --- Braking & Correction (3) ---
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4: Brake / Reverse
+    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 5: Brake + Left (Sharp correction)
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 6: Brake + Right
+
+    # --- Advanced Physics: Drifting (3) ---
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7: Gas + Hop (Initiate Drift)
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],  # 8: Gas + Left + Drift (Tight Corner)
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],  # 9: Gas + Right + Drift
+
+    # --- Combat & Item Usage (3) ---
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # 10: Gas + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 11: Gas + Left + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 12: Gas + Right + Item
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 13: Gas + Drift + Item
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 14: Gas + Left + Drift + Item
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],  # 15: Gas + Right + Drift + Item
+
+    # --- The "Weird" Combos (2) ---
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake 
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
 ]
 
 
@@ -140,7 +171,7 @@ class PPO_Agent:
         self.intervals_without_improvement = 0
         self.should_stop = False
 
-        self.action_set = SIMPLE_ACTIONS
+        self.action_set = DISCOVERY_ACTIONS
         self.num_actions = len(self.action_set)
 
         self.ac_net = ActorCritic(self.num_actions).to(device)
@@ -371,16 +402,19 @@ class PPO_Agent:
 
     def save_checkpoint(self, filepath, episode):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        ckpt_hash = uuid.uuid4().hex[:8]
 
         checkpoint = {
             "episode": episode,
             "steps": self.steps,
             "ac_net_state": self.ac_net.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
+            "hash": ckpt_hash,
         }
 
         torch.save(checkpoint, f"{filepath}_model.pth")
         print(f"Checkpoint successfully saved at Episode {episode}.")
+        return ckpt_hash
 
     def load_checkpoint(self, filepath):
         model_path = f"{filepath}_model.pth"
@@ -397,12 +431,13 @@ class PPO_Agent:
         self.steps = checkpoint.get("steps", 0)
 
         resume_episode = checkpoint["episode"]
+        ckpt_hash = checkpoint.get("hash", None)
 
         print(
             f"Successfully resumed from Episode {resume_episode} "
             f"with {self.steps} total steps."
         )
 
-        return resume_episode
+        return resume_episode, ckpt_hash
     
 
