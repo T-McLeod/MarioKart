@@ -107,7 +107,6 @@ class PPONatureAgent(BaseAgent):
         self.ent_coef_end = ent_coef_end
         self.gae_lambda = gae_lambda
         self.max_grad_norm = max_grad_norm
-        self.total_timesteps = total_timesteps
         self.verbose = verbose
 
 
