@@ -5,6 +5,7 @@ class PPOImpalaAgent(BaseAgent):
     def __init__(self, env, **kwargs):
         super().__init__(env, **kwargs)
         # TODO: Initialize IMPALA network, optimizer, and buffers
+        raise NotImplementedError("PPOImpalaAgent initialization is not implemented yet.")
 
     @classmethod
     def get_wrappers(cls, verbose=False):
