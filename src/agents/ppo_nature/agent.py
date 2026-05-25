@@ -9,7 +9,7 @@ from gymnasium.wrappers import FrameStackObservation
 from ..base import BaseAgent
 from .network import ActorCritic
 
-from ..wrapper import (
+from ...wrapper import (
     DebugObservation,
     DiscreteActionWrapper,
     MarioResize,
@@ -91,8 +91,9 @@ class PPONatureAgent(BaseAgent):
         total_timesteps=3_000_000,
         no_improve_tolerance=999999,
         verbose=False,
+        **kwargs
     ):
-        super().__init__(env, total_timesteps=total_timesteps)
+        super().__init__(env, total_timesteps=total_timesteps, **kwargs)
         self.discount = discount
         self.learning_rate = learning_rate
         self.rollout_steps = rollout_steps
@@ -160,7 +161,7 @@ class PPONatureAgent(BaseAgent):
         if is_single:
             state = np.expand_dims(state, axis=0)
             
-        state_t = torch.tensor(state, dtype=torch.float32).to(device)
+        state_t = torch.tensor(state, dtype=torch.float32).contiguous().to(device)
 
         with torch.no_grad():
             action_t, log_prob_t, _, value_t = self.ac_net.get_action_and_value(state_t)
@@ -206,7 +207,7 @@ class PPONatureAgent(BaseAgent):
             last_state_t = torch.tensor(
                 last_next_state,
                 dtype=torch.float32,
-            ).to(device)
+            ).contiguous().to(device)
 
             _, _, _, last_value_t = self.ac_net.get_action_and_value(last_state_t)
             last_value = last_value_t.view(-1).cpu().numpy()
@@ -241,7 +242,7 @@ class PPONatureAgent(BaseAgent):
         returns = advantages + values  #CleanRL
 
         # flatten buffer to tensors — CleanRL "flatten the batch"
-        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).to(device).view(-1, 4, 84, 84)
+        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).contiguous().to(device).view(-1, 4, 84, 84)
         b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device).view(-1)
         b_old_log_probs = torch.tensor(np.array(self._rb_log_probs), dtype=torch.float32).to(device).view(-1)
         b_advantages = torch.tensor(advantages, dtype=torch.float32).to(device).view(-1)
@@ -406,4 +407,3 @@ class PPONatureAgent(BaseAgent):
 
         return resume_episode
     
-

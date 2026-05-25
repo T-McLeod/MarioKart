@@ -52,8 +52,8 @@ def main():
     agent_module_name = f"src.agents.{args.agent}.agent"
     try:
         agent_module = importlib.import_module(agent_module_name)
-    except ModuleNotFoundError:
-        raise ValueError(f"Could not find agent module: {agent_module_name}. Make sure --agent is correct (e.g., ppo_nature)")
+    except Exception as e:
+        raise ValueError(f"Could not find or load agent module {agent_module_name}. Error: {e}")
 
     agent_class = None
     for name, obj in inspect.getmembers(agent_module):
@@ -82,7 +82,7 @@ def main():
             )
             for wrapper in agent_class.get_wrappers():
                 env = wrapper(env)
-            if record_video and idx == 0:
+            if record_video and idx == 0 and video_freq > 0:
                 env = gym.wrappers.RecordVideo(
                     env, 
                     video_folder="videos/", 

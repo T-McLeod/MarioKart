@@ -12,7 +12,7 @@ import argparse
 GAME_NAME = "SuperMarioKart-Snes"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-def main(agent_name, checkpoint_arg, record=False, num_episodes=1):
+def main(agent_name, run_name, checkpoint_arg, record=False, num_episodes=1):
     agent_module_name = f"src.agents.{agent_name}.agent"
     try:
         agent_module = importlib.import_module(agent_module_name)
@@ -28,7 +28,10 @@ def main(agent_name, checkpoint_arg, record=False, num_episodes=1):
     if agent_class is None:
         raise ValueError(f"Could not find a valid BaseAgent subclass in {agent_module_name}")
 
-    checkpoint_prefix, load_base_path, _ = cfg.resolve_run_config(agent_name, checkpoint_arg)
+    if run_name is None:
+        run_name = agent_name
+
+    checkpoint_prefix, load_base_path, _ = cfg.resolve_run_config(run_name, checkpoint_arg)
 
     if load_base_path is None:
         raise FileNotFoundError("Could not find a checkpoint to evaluate.")
@@ -117,9 +120,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Evaluate a Mario Kart agent.")
     parser.add_argument("--agent", type=str, required=True, help="Agent name (e.g. ppo_nature)")
+    parser.add_argument("--name", type=str, default=None, help="The name of the run (e.g. aggressive-learner-v3). Used to find the saved models.")
     parser.add_argument("--checkpoint", type=int, default=None, help="Specific update number to resume from")
     parser.add_argument("--record", action="store_true", help="Record episodes to a video file")
     parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to evaluate")
     args = parser.parse_args()
 
-    main(agent_name=args.agent, checkpoint_arg=args.checkpoint, record=args.record, num_episodes=args.episodes)
+    main(agent_name=args.agent, run_name=args.name, checkpoint_arg=args.checkpoint, record=args.record, num_episodes=args.episodes)
