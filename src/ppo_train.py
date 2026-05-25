@@ -5,7 +5,6 @@ import numpy as np
 import os
 import wandb
 import gymnasium as gym
-import torch
 
 import json
 
