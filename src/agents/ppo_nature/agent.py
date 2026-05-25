@@ -6,6 +6,8 @@ from torch.distributions import Categorical
 import numpy as np
 import uuid
 from gymnasium.wrappers import FrameStackObservation
+from ..base import BaseAgent
+from .network import ActorCritic
 
 from ..wrapper import (
     DebugObservation,
@@ -69,11 +71,6 @@ DISCOVERY_ACTIONS = [
     [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake 
     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
 ]
-
-
-
-from ..base import BaseAgent
-from .network import ActorCritic
 
 
 class PPONatureAgent(BaseAgent):
