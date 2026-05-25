@@ -12,11 +12,13 @@ class BaseAgent(ABC):
 
     @classmethod
     @abstractmethod
-    def get_wrappers(cls):
+    def get_wrappers(cls, verbose=False):
         """
         Returns a list of wrapper classes/functions that this agent requires.
         The train loop will apply these to the environment sequentially.
         Must be a class method so the train loop can wrap envs before instantiating the agent.
+        The optional ``verbose`` flag allows implementations to emit additional logging or
+        select wrappers conditionally without changing the public interface.
         """
         pass
 
