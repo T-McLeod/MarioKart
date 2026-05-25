@@ -12,6 +12,7 @@ import json
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 def main():
     args, provided_hyperparams = cfg.parse_args()
 
