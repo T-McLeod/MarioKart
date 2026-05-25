@@ -112,6 +112,8 @@ class PPONatureAgent(BaseAgent):
         self.best_avg_return = float("-inf")
         self.intervals_without_improvement = 0
         self.should_stop = False
+        
+        self.custom_metrics = {}
 
         self.action_set = DISCOVERY_ACTIONS
         self.num_actions = len(self.action_set)
@@ -324,6 +326,20 @@ class PPONatureAgent(BaseAgent):
 
             if stop_epoch_early:
                 break
+                
+        progress = min(self.steps / self.total_timesteps, 1.0)
+        current_ent_coef = self.ent_coef_start + progress * (self.ent_coef_end - self.ent_coef_start)
+
+        self.custom_metrics = {
+            "pg_loss": pg_loss.item(),
+            "v_loss": v_loss.item(),
+            "entropy": entropy_loss.item(),
+            "approx_kl": approx_kl,
+            "entropy_coef": current_ent_coef
+        }
+        
+    def get_custom_metrics(self):
+        return self.custom_metrics
 
     @classmethod
     def get_wrappers(cls, verbose=False):

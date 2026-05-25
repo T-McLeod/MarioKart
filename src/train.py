@@ -1,5 +1,7 @@
 import stable_retro
-from .agents.ppo_agent import PPO_Agent
+from .agents.base import BaseAgent
+import importlib
+import inspect
 from . import config as cfg
 import numpy as np
 import os
@@ -47,21 +49,23 @@ def main():
     num_envs = hyperparams["num_envs"]
     video_freq = hyperparams["video_freq"]
 
+    agent_module_name = f"src.agents.{args.agent}.agent"
+    try:
+        agent_module = importlib.import_module(agent_module_name)
+    except ModuleNotFoundError:
+        raise ValueError(f"Could not find agent module: {agent_module_name}. Make sure --agent is correct (e.g., ppo_nature)")
+
+    agent_class = None
+    for name, obj in inspect.getmembers(agent_module):
+        if inspect.isclass(obj) and issubclass(obj, BaseAgent) and obj is not BaseAgent:
+            agent_class = obj
+            break
+            
+    if agent_class is None:
+        raise ValueError(f"Could not find a valid BaseAgent subclass in {agent_module_name}")
+
     # Dummy env for agent init
-    agent = PPO_Agent(
-        None,
-        learning_rate=hyperparams["learning_rate"],
-        rollout_steps=hyperparams["rollout_steps"],
-        minibatch_size=hyperparams["minibatch_size"],
-        n_epochs=hyperparams["n_epochs"],
-        ent_coef_start=hyperparams["ent_coef_start"],
-        ent_coef_end=hyperparams["ent_coef_end"],
-        gae_lambda=hyperparams["gae_lambda"],
-        clip_coef=hyperparams["clip_coef"],
-        max_grad_norm=hyperparams["max_grad_norm"],
-        total_timesteps=hyperparams["total_timesteps"],
-        no_improve_tolerance=hyperparams["no_improve_tolerance"],
-    )
+    agent = agent_class(None, **hyperparams)
 
     def make_env(idx, record_video=False):
         def _init():
@@ -76,7 +80,8 @@ def main():
                 render_mode="rgb_array",
                 inttype=stable_retro.data.Integrations.ALL
             )
-            env = agent.wrap_env(env)
+            for wrapper in agent_class.get_wrappers():
+                env = wrapper(env)
             if record_video and idx == 0:
                 env = gym.wrappers.RecordVideo(
                     env, 
@@ -150,23 +155,12 @@ def main():
             avg_return = np.mean(all_episode_returns[-20:])
             avg_length = np.mean(all_episode_lengths[-20:])
             
-            progress = min(agent.steps / agent.total_timesteps, 1.0)
-            current_ent_coef = agent.ent_coef_start + progress * (agent.ent_coef_end - agent.ent_coef_start)
-
-            print(f"    Avg Return (last 20 eps): {avg_return:.2f}")
-            print(f"    Avg Length (last 20 eps): {avg_length:.2f}")
-            print(f"    Entropy Coef: {current_ent_coef:.4f}")
-
             metrics.update({
                 "avg_return": avg_return,
                 "avg_length": avg_length,
-                "entropy_coef": current_ent_coef,
             })
-
-            agent.record_return(avg_return)
-            if agent.should_stop:
-                print("Stopping training early.")
-                break
+            
+        metrics.update(agent.get_custom_metrics())
         
         # We can grab W&B video automatically if monitor_gym was used, or we log manually if file exists
         # RecordVideo creates videos in videos/ folder. We upload the most recent one if it's new.

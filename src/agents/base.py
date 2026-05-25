@@ -38,6 +38,12 @@ class BaseAgent(ABC):
         """
         pass
 
+    def get_custom_metrics(self):
+        """
+        Returns an optional dictionary of custom metrics to log to WandB at the end of each rollout/update cycle.
+        """
+        return {}
+
     @abstractmethod
     def save_checkpoint(self, filepath, step):
         """Saves the agent state."""

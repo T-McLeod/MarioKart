@@ -77,6 +77,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="PPO Mario Kart Training")
     parser.add_argument("--name", type=str, default=None, help="Name of the run")
     parser.add_argument("--checkpoint", type=int, default=None, help="Specific update number to resume from")
+    parser.add_argument("--agent", type=str, required=True, help="Agent name (e.g. ppo_nature, ppo_impala)")
     
     # Hyperparameters (default None to detect if they were explicitly provided)
     parser.add_argument("--learning-rate", type=float, default=None)
@@ -98,7 +99,7 @@ def parse_args():
     
     provided_hyperparams = False
     for key, value in vars(args).items():
-        if key not in ["name", "checkpoint"] and value is not None:
+        if key not in ["name", "checkpoint", "agent"] and value is not None:
             provided_hyperparams = True
             PPO_HYPERPARAMS[key] = value
             
