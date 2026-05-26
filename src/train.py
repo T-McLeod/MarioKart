@@ -68,7 +68,7 @@ def main():
     # Dummy env for agent init
     agent = agent_class(None, **hyperparams)
 
-    def make_env(idx, record_video=False):
+    def make_env(idx):
         def _init():
             # Must register custom path inside the worker process because we use multiprocessing 'spawn'
             custom_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "custom_integrations"))
@@ -87,11 +87,11 @@ def main():
         return _init
 
     envs = gym.vector.AsyncVectorEnv(
-        [make_env(i, record_video=False) for i in range(num_envs)],
+        [make_env(i) for i in range(num_envs)],
         context="spawn"
     )
 
-    eval_env = make_env(99, record_video=False)()
+    eval_env = make_env(99)()
 
     # Checkpoint loading logic
     if load_base_path is not None:
