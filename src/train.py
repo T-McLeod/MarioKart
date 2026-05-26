@@ -1,144 +1,183 @@
 import stable_retro
-from .agents.random_agent import MarioKartRandomAgent
-from .agents.deep_rl_agent import Deep_RL_Agent
-from .agents.ppo_agent import PPO_Agent
+from .agents.base import BaseAgent
+import importlib
+import inspect
 from . import config as cfg
+from .eval import evaluate_and_record
 import numpy as np
 import os
-import matplotlib
-matplotlib.use("Agg")  # headless backend — no display needed on the cluster
-import matplotlib.pyplot as plt
-from .wrapper import MarioResize, MarioToPyTorch
-
+import cv2
+import wandb
+import gymnasium as gym
 
 GAME_NAME = "SuperMarioKart-Snes"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def plot_and_save(plot_episodes, avg_returns, avg_lengths, out_dir="plots"):
-    """Save a two-panel training curve PNG every time it's called."""
-    os.makedirs(out_dir, exist_ok=True)
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
-
-    ax1.plot(plot_episodes, avg_returns, color="steelblue", linewidth=1.5)
-    ax1.axhline(0, color="gray", linewidth=0.8, linestyle="--")
-    ax1.set_ylabel("Avg Return")
-    ax1.set_title("PPO Training Curve — Super Mario Kart")
-    ax1.grid(True, alpha=0.3)
-
-    ax2.plot(plot_episodes, avg_lengths, color="darkorange", linewidth=1.5)
-    ax2.set_xlabel("Episode")
-    ax2.set_ylabel("Avg Episode Length")
-    ax2.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    fig.savefig(os.path.join(out_dir, "training_curve.png"), dpi=120)
-    plt.close(fig)
-
-
 def main():
-    checkpoint_prefix = "models/mario_cluster_ckpt" + f"_{cfg.state}"
-    episode_suffix = "500"
+    args, provided_hyperparams = cfg.parse_args()
 
-    env = stable_retro.make(
-        game=GAME_NAME,
-        state=cfg.state,
-        scenario=cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
-        render_mode=cfg.render_mode,
-        inttype=stable_retro.data.Integrations.ALL
+    hyperparams = cfg.PPO_HYPERPARAMS
+
+    wandb_config = {
+        "state": cfg.state,
+        "n_episodes": cfg.n_episodes,
+        "max_timesteps": cfg.max_timesteps,
+        **hyperparams
+    }
+
+    run_name = args.name if args.name else wandb.util.generate_id()
+    wandb.init(
+        project="mariokart-rl", 
+        id=run_name, 
+        name=run_name, 
+        resume="allow", 
+        config=wandb_config
     )
-    """agent = Deep_RL_Agent(
-        env,
-        discount=0.99,
-        learning_rate=0.00025,
-        buffer_size=25000,
-        batch_size=64,
-        target_update_freq=5000,
-        epsilon_start=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.99999
-    )"""
+    print("WANDB INIT DONE - PROCEEDING TO ENV SETUP", flush=True)
 
+    if wandb.run.resumed:
+        if provided_hyperparams:
+            raise ValueError("Cannot override hyperparameters when resuming! The original hyperparameters must be used.")
+        print("Run resumed from W&B! Loading original hyperparameters from cloud config.")
+        for key in hyperparams.keys():
+            if key in wandb.config:
+                hyperparams[key] = wandb.config[key]
 
-    #Used AI to help pick hyperparameters for training 
-    agent = PPO_Agent(
-        env,
-        learning_rate=5e-5,
-        rollout_steps=2048,
-        minibatch_size=256,
-        n_epochs=4,
-        ent_coef_start=0.03,
-        ent_coef_end=0.01,
-        gae_lambda=0.95,
-        clip_coef=0.1,
-        max_grad_norm=0.5,
-        total_timesteps=3_000_000,
-        no_improve_tolerance=999999,
+    checkpoint_prefix, load_base_path, start_update = cfg.resolve_run_config(run_name, args.checkpoint)
+
+    total_timesteps = hyperparams["total_timesteps"]
+    rollout_steps = hyperparams["rollout_steps"]
+    num_envs = hyperparams["num_envs"]
+
+    agent_module_name = f"src.agents.{args.agent}.agent"
+    try:
+        agent_module = importlib.import_module(agent_module_name)
+    except ModuleNotFoundError as e:
+        raise ValueError(f"Could not find agent module {agent_module_name}. Error: {e}") from e
+
+    agent_class = None
+    for name, obj in inspect.getmembers(agent_module):
+        if inspect.isclass(obj) and issubclass(obj, BaseAgent) and obj is not BaseAgent:
+            agent_class = obj
+            break
+            
+    if agent_class is None:
+        raise ValueError(f"Could not find a valid BaseAgent subclass in {agent_module_name}")
+
+    # Dummy env for agent init
+    agent = agent_class(None, **hyperparams)
+
+    def make_env(idx):
+        def _init():
+            # Must register custom path inside the worker process because we use multiprocessing 'spawn'
+            custom_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "custom_integrations"))
+            stable_retro.data.Integrations.add_custom_path(custom_path)
+
+            env = stable_retro.make(
+                game=GAME_NAME,
+                state=cfg.state,
+                scenario=cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
+                render_mode="rgb_array",
+                inttype=stable_retro.data.Integrations.ALL
+            )
+            for wrapper in agent_class.get_wrappers():
+                env = wrapper(env)
+            return env
+        return _init
+
+    envs = gym.vector.AsyncVectorEnv(
+        [make_env(i) for i in range(num_envs)],
+        context="spawn"
     )
-    start_episode = agent.load_checkpoint(checkpoint_prefix + f"_{episode_suffix}")
-    env = agent.wrap_env(env)
 
-    episode_returns = []
-    episode_lengths = []
-    # Tracking lists for the live training curve (one point per print_every block)
-    plot_episodes = []
-    plot_avg_returns = []
-    plot_avg_lengths = []
-    # Training Loop
-    print(f"Starting training from Episode {start_episode} to Episode {cfg.n_episodes}...")
-    for episode in range(start_episode, cfg.n_episodes):
-        state, info = env.reset()
-        episode_over = False
-        t = 0
-        episode_return = 0
-        
-        while not episode_over and (cfg.max_timesteps <= 0 or t < cfg.max_timesteps):
+    eval_env = make_env(99)()
+
+    # Checkpoint loading logic
+    if load_base_path is not None:
+        start_update = agent.load_checkpoint(load_base_path)
+    else:
+        start_update = 0
+
+    global_step = agent.steps
+    num_updates = (total_timesteps // rollout_steps)
+    last_logged_video = None
+
+    state, info = envs.reset()
+    episode_returns = np.zeros(num_envs)
+    episode_lengths = np.zeros(num_envs)
+    
+    # Tracking for wandb
+    all_episode_returns = []
+    all_episode_lengths = []
+
+    print(f"Starting PPO training from Update {start_update} to {num_updates} ({total_timesteps} total steps) with {num_envs} envs...")
+    
+    assert rollout_steps % num_envs == 0, f"rollout_steps ({rollout_steps}) must be perfectly divisible by num_envs ({num_envs}) to avoid truncation!"
+    steps_per_env = rollout_steps // num_envs
+
+    for update in range(start_update + 1, num_updates + 1):
+        # Collect exactly `rollout_steps` across all envs for this update
+        for step in range(steps_per_env):
             action = agent.action_select(state)
-            next_state, reward, terminated, truncated, info = env.step(action)
-            episode_return += reward
-            agent.update(state, action, reward, next_state, terminated or truncated)
+            next_state, reward, terminated, truncated, info = envs.step(action)
+            
+            episode_returns += reward
+            episode_lengths += 1
+            global_step += num_envs
 
-            episode_over = terminated or truncated
+            # Combine terminated and truncated for the update step
+            done = np.logical_or(terminated, truncated)
+
+            agent.update(state, action, reward, next_state, done)
+
+            for i in range(num_envs):
+                if done[i]:
+                    all_episode_returns.append(episode_returns[i])
+                    all_episode_lengths.append(episode_lengths[i])
+                    episode_returns[i] = 0
+                    episode_lengths[i] = 0
+
             state = next_state
-            t += 1
 
-        episode_returns.append(episode_return)
-        episode_lengths.append(t)
+        print(f"Update {update}/{num_updates} completed. Total steps: {global_step}/{total_timesteps}")
+        
+        metrics = {
+            "global_step": global_step,
+            "update": update
+        }
 
-        if cfg.print_every and (episode + 1) % cfg.print_every == 0:
-            avg_return = np.mean(episode_returns[-cfg.print_every:])
-            avg_length = np.mean(episode_lengths[-cfg.print_every:])
+        if len(all_episode_returns) > 0:
+            avg_return = np.mean(all_episode_returns[-20:])
+            avg_length = np.mean(all_episode_lengths[-20:])
+            
+            metrics.update({
+                "avg_return": avg_return,
+                "avg_length": avg_length,
+            })
+            
+        metrics.update(agent.get_custom_metrics())
 
-            print(f"Episode {episode + 1}/{cfg.n_episodes} completed.")
-            print(f"    Average Return (last {cfg.print_every} episodes): {avg_return}")
-            print(f"    Average Episode Length (last {cfg.print_every} episodes): {avg_length}")
-            print(f"    Total steps: {agent.steps}")
+        if update % hyperparams.get("checkpoint_freq", 50) == 0:
+            print(f"Saving checkpoint at update {update}...")
+            ckpt_hash = agent.save_checkpoint(f"{checkpoint_prefix}{update}", update)
+            
+            print(f"Running synchronous evaluation to record video for checkpoint {update}...")
+            video_path = os.path.join(SCRIPT_DIR, "..", "videos", f"{run_name}_{cfg.state}_update_{update}_eval.mp4")
+            evaluate_and_record(agent, eval_env, num_episodes=2, video_path=video_path, max_timesteps=cfg.max_timesteps)
+            
+            if os.path.exists(video_path):
+                metrics.update({"gameplay_video": wandb.Video(video_path, format="mp4")})
 
-            # Record and redraw the training curve
-            plot_episodes.append(episode + 1)
-            plot_avg_returns.append(avg_return)
-            plot_avg_lengths.append(avg_length)
-            plot_and_save(plot_episodes, plot_avg_returns, plot_avg_lengths)
+        wandb.log(metrics)
 
-            # Early stopping — PPO only
-            if isinstance(agent, PPO_Agent):
-                agent.record_return(avg_return)
-                if agent.should_stop:
-                    print("Stopping training early.")
-                    agent.save_checkpoint(checkpoint_prefix + f"_early_stop", episode)
-                    break
 
-        if episode % 500 == 0 and episode > 0:
-            print(f"Saving checkpoint at episode {episode}...")
-            agent.save_checkpoint(checkpoint_prefix + f"_{episode}", episode)
-
-    # Save final checkpoint after training completes
     print("Training complete. Saving final checkpoint...")
-    agent.save_checkpoint(checkpoint_prefix + f"_final", cfg.n_episodes)
+    agent.save_checkpoint(f"{checkpoint_prefix}final", num_updates)
+    envs.close()
+    wandb.finish()
 
 if __name__ == "__main__":
     custom_path = os.path.abspath("custom_integrations")
     stable_retro.data.Integrations.add_custom_path(custom_path)
-
     main()

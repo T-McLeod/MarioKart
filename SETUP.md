@@ -57,7 +57,7 @@ MK_DEBUG_OBSERVATION=1
    
    To start a brand new run (auto-generates a human-readable name in W&B):
    ```powershell
-   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.ppo_train
+   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.train --agent ppo_nature
    ```
 
    To name your run (or auto-resume from the highest checkpoint if the name exists):
@@ -66,12 +66,12 @@ MK_DEBUG_OBSERVATION=1
     -e PYTHONUNBUFFERED=1 \
     -e WANDB_API_KEY=YOUR_WANDB_API_KEY \
     -v "${PWD}:/workspace/MarioKart" \
-    mariokart-rl python -u -m src.ppo_train --name "my-cool-run"
+    mariokart-rl python -u -m src.train --agent ppo_nature --name "my-cool-run"
    ```
 
    To force-load a specific checkpoint (e.g., update 50):
    ```powershell
-   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.ppo_train --name "my-cool-run" --checkpoint 50
+   docker run --rm -e PYTHONUNBUFFERED=1 -e WANDB_API_KEY=YOUR_API_KEY -v "${PWD}:/workspace/MarioKart" mariokart-rl python -u -m src.train --agent ppo_nature --name "my-cool-run" --checkpoint 50
    ```
 
    **Overriding Hyperparameters:**
@@ -88,12 +88,22 @@ pip install -r requirements.txt
 
 To start a new training run:
 ```bash
-python -m src.ppo_train
+python -m src.train --agent ppo_nature
 ```
 *(You can append `--name` and `--checkpoint` flags exactly as shown in the Docker instructions).*
 
 ### Evaluation & Visualization
-To watch your trained agent drive or run quantitative tests:
+
+To evaluate an agent, calculate its average returns, and optionally record a video of its gameplay, use the `src.eval` script. 
+
+Example for visualizing a specific checkpoint and recording a video:
 ```bash
-python -m src.test
+python -m src.eval --agent ppo_nature --name "aggressive-learner-v3" --checkpoint 7100 --record
 ```
+
+**Options:**
+- `--agent`: (Required) The agent architecture (e.g., `ppo_nature`).
+- `--name`: The W&B run name used during training to locate the correct models folder.
+- `--checkpoint`: A specific update number to evaluate.
+- `--record`: Include this flag to output an MP4 video of the gameplay to the `videos/` folder.
+- `--episodes`: Number of episodes to run (default: 1).

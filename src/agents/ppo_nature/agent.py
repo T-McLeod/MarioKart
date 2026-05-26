@@ -6,8 +6,10 @@ from torch.distributions import Categorical
 import numpy as np
 import uuid
 from gymnasium.wrappers import FrameStackObservation
+from ..base import BaseAgent
+from .network import ActorCritic
 
-from ..wrapper import (
+from ...wrapper import (
     DebugObservation,
     DiscreteActionWrapper,
     MarioResize,
@@ -71,66 +73,7 @@ DISCOVERY_ACTIONS = [
 ]
 
 
-
-# architecture adapted from CleanRL ppo_atari.py Agent
-class ActorCritic(nn.Module):
-    def __init__(self, num_actions):
-        super().__init__()
-
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-
-        self.flatten = nn.Flatten()
-        self.fc_shared = nn.Linear(64 * 7 * 7, 256)
-
-        self.actor = nn.Linear(256, num_actions)
-        self.critic = nn.Linear(256, 1)
-
-        self._init_weights()
-
-    def _init_weights(self):
-        # orthogonal init from CleanRL layer_init()
-        # gains: sqrt(2) conv/fc, 0.01 actor, 1.0 critic
-        nn.init.orthogonal_(self.conv1.weight, gain=np.sqrt(2))
-        nn.init.orthogonal_(self.conv2.weight, gain=np.sqrt(2))
-        nn.init.orthogonal_(self.conv3.weight, gain=np.sqrt(2))
-        nn.init.orthogonal_(self.fc_shared.weight, gain=np.sqrt(2))
-        nn.init.orthogonal_(self.actor.weight, gain=0.01)
-        nn.init.orthogonal_(self.critic.weight, gain=1.0)
-
-        nn.init.constant_(self.conv1.bias, 0)
-        nn.init.constant_(self.conv2.bias, 0)
-        nn.init.constant_(self.conv3.bias, 0)
-        nn.init.constant_(self.fc_shared.bias, 0)
-        nn.init.constant_(self.actor.bias, 0)
-        nn.init.constant_(self.critic.bias, 0)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = self.flatten(x)
-        x = F.relu(self.fc_shared(x))
-
-        logits = self.actor(x)
-        value = self.critic(x)
-
-        return logits, value
-
-    def get_action_and_value(self, x, action=None):
-        # CleanRL Agent.get_action_and_value()
-        # pixel norm handled in MarioToPyTorch
-        logits, value = self.forward(x)
-        dist = Categorical(logits=logits)
-
-        if action is None:
-            action = dist.sample()
-
-        return action, dist.log_prob(action), dist.entropy(), value
-
-
-class PPO_Agent:
+class PPONatureAgent(BaseAgent):
     def __init__(
         self,
         env,
@@ -148,8 +91,9 @@ class PPO_Agent:
         total_timesteps=3_000_000,
         no_improve_tolerance=999999,
         verbose=False,
+        **kwargs
     ):
-        self.env = env
+        super().__init__(env, total_timesteps=total_timesteps, **kwargs)
         self.discount = discount
         self.learning_rate = learning_rate
         self.rollout_steps = rollout_steps
@@ -161,15 +105,16 @@ class PPO_Agent:
         self.ent_coef_end = ent_coef_end
         self.gae_lambda = gae_lambda
         self.max_grad_norm = max_grad_norm
-        self.total_timesteps = total_timesteps
         self.verbose = verbose
 
-        self.steps = 0
+
         # early stopping
         self.no_improve_tolerance = no_improve_tolerance
         self.best_avg_return = float("-inf")
         self.intervals_without_improvement = 0
         self.should_stop = False
+        
+        self.custom_metrics = {}
 
         self.action_set = DISCOVERY_ACTIONS
         self.num_actions = len(self.action_set)
@@ -216,7 +161,7 @@ class PPO_Agent:
         if is_single:
             state = np.expand_dims(state, axis=0)
             
-        state_t = torch.tensor(state, dtype=torch.float32).to(device)
+        state_t = torch.tensor(state, dtype=torch.float32).contiguous().to(device)
 
         with torch.no_grad():
             action_t, log_prob_t, _, value_t = self.ac_net.get_action_and_value(state_t)
@@ -262,7 +207,7 @@ class PPO_Agent:
             last_state_t = torch.tensor(
                 last_next_state,
                 dtype=torch.float32,
-            ).to(device)
+            ).contiguous().to(device)
 
             _, _, _, last_value_t = self.ac_net.get_action_and_value(last_state_t)
             last_value = last_value_t.view(-1).cpu().numpy()
@@ -297,7 +242,7 @@ class PPO_Agent:
         returns = advantages + values  #CleanRL
 
         # flatten buffer to tensors — CleanRL "flatten the batch"
-        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).to(device).view(-1, 4, 84, 84)
+        b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).contiguous().to(device).view(-1, 4, 84, 84)
         b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device).view(-1)
         b_old_log_probs = torch.tensor(np.array(self._rb_log_probs), dtype=torch.float32).to(device).view(-1)
         b_advantages = torch.tensor(advantages, dtype=torch.float32).to(device).view(-1)
@@ -382,29 +327,45 @@ class PPO_Agent:
 
             if stop_epoch_early:
                 break
+                
+        progress = min(self.steps / self.total_timesteps, 1.0)
+        current_ent_coef = self.ent_coef_start + progress * (self.ent_coef_end - self.ent_coef_start)
 
-    def wrap_env(self, env):
+        self.custom_metrics = {
+            "pg_loss": pg_loss.item(),
+            "v_loss": v_loss.item(),
+            "entropy": entropy_loss.item(),
+            "approx_kl": approx_kl,
+            "entropy_coef": current_ent_coef
+        }
+        
+    def get_custom_metrics(self):
+        return self.custom_metrics
+
+    @classmethod
+    def get_wrappers(cls, verbose=False):
         # mirrors CleanRL's atari wrapper stack for Mario Kart
         # MaxAndSkipEnv, FrameStack -- CleanRL
-        if self.verbose:
-            env = DebugObservation(env)
+        wrappers = []
+        if verbose:
+            wrappers.append(DebugObservation)
 
-        env = MarioResize(env)
-        env = MaxAndSkipEnv(env, skip=4)
-        env = FrameStackObservation(env, 4)
-        env = MarioToPyTorch(env)
+        wrappers.append(MarioResize)
+        wrappers.append(lambda env: MaxAndSkipEnv(env, skip=4))
+        wrappers.append(lambda env: FrameStackObservation(env, 4))
+        wrappers.append(MarioToPyTorch)
 
-        action_map = [np.array(a, dtype=np.int8) for a in self.action_set]
-        env = DiscreteActionWrapper(env, action_map=action_map)
+        action_map = [np.array(a, dtype=np.int8) for a in DISCOVERY_ACTIONS]
+        wrappers.append(lambda env: DiscreteActionWrapper(env, action_map=action_map))
 
         # Same wrapper rewards as DQN for fair environment comparison.
-        env = EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5)
-        env = SpeedReward(env, scale=0.0001)
-        # env = CompleteLapReward(env)
+        wrappers.append(lambda env: EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5))
+        wrappers.append(lambda env: SpeedReward(env, scale=0.0001))
+        # wrappers.append(CompleteLapReward)
 
-        env = RewardScaling(env, scale=0.01)  # PPO-specific reward scaling
+        wrappers.append(lambda env: RewardScaling(env, scale=0.01))  # PPO-specific reward scaling
 
-        return env
+        return wrappers
 
     def save_checkpoint(self, filepath, episode):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -446,4 +407,3 @@ class PPO_Agent:
 
         return resume_episode
     
-

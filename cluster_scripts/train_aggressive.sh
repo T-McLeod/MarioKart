@@ -5,8 +5,8 @@
 #SBATCH --partition=compsci-gpu               
 #SBATCH --gres=gpu:1                  
 #SBATCH --mem=32G                     
-#SBATCH --cpus-per-task=4             
-#SBATCH --time=24:00:00               
+#SBATCH --cpus-per-task=8             
+#SBATCH --time=36:00:00               
 # Navigate to your CS scratch space
 # EDIT REQUIRED: Update the path below to point to your specific scratch space or working directory.
 cd /usr/project/xtmp/tm419/
@@ -20,4 +20,4 @@ export APPTAINERENV_PYTHONNOUSERSITE=1
 # Create output directories on the host so they can be bound
 mkdir -p models videos wandb
 # EDIT REQUIRED: Update 'my_model.sif' in the command below to match your compiled Apptainer image name if different.
-apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.ppo_train --name \"aggressive-learner-v3\" --learning-rate 0.0002 --clip-coef 0.2 --n-epochs 4 --total-timesteps 50000000 --no-improve-tolerance 999999 & wait"
+apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.train --agent ppo_nature --name \"aggressive-learner-v1.0\" --learning-rate 0.0002 --clip-coef 0.2 --n-epochs 4 --total-timesteps 15000000 --no-improve-tolerance 999999 --num-envs 8 & wait"
