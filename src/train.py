@@ -3,8 +3,10 @@ from .agents.base import BaseAgent
 import importlib
 import inspect
 from . import config as cfg
+from .eval import evaluate_and_record
 import numpy as np
 import os
+import cv2
 import wandb
 import gymnasium as gym
 
@@ -82,20 +84,15 @@ def main():
             )
             for wrapper in agent_class.get_wrappers():
                 env = wrapper(env)
-            if record_video and idx == 0 and video_freq > 0:
-                env = gym.wrappers.RecordVideo(
-                    env, 
-                    video_folder="videos/", 
-                    episode_trigger=lambda ep: ep % video_freq == 0,
-                    name_prefix=f"{run_name}"
-                )
             return env
         return _init
 
     envs = gym.vector.AsyncVectorEnv(
-        [make_env(i, record_video=True) for i in range(num_envs)],
+        [make_env(i, record_video=False) for i in range(num_envs)],
         context="spawn"
     )
+
+    eval_env = make_env(99, record_video=False)()
 
     # Checkpoint loading logic
     if load_base_path is not None:
@@ -161,23 +158,19 @@ def main():
             })
             
         metrics.update(agent.get_custom_metrics())
-        
-        # We can grab W&B video automatically if monitor_gym was used, or we log manually if file exists
-        # RecordVideo creates videos in videos/ folder. We upload the most recent one if it's new.
-        videos = [f for f in os.listdir("videos/") if f.endswith(".mp4") and f.startswith(run_name)] if os.path.exists("videos/") else []
-        if videos:
-            latest_video = sorted(videos, key=lambda x: os.path.getmtime(os.path.join("videos/", x)))[-1]
-            if latest_video != last_logged_video:
-                video_path = os.path.join("videos/", latest_video)
-                # Add to metrics
-                metrics["gameplay_video"] = wandb.Video(video_path, format="mp4")
-                last_logged_video = latest_video
-
-        wandb.log(metrics)
 
         if update % hyperparams.get("checkpoint_freq", 50) == 0:
             print(f"Saving checkpoint at update {update}...")
             ckpt_hash = agent.save_checkpoint(f"{checkpoint_prefix}{update}", update)
+            
+            print(f"Running synchronous evaluation to record video for checkpoint {update}...")
+            video_path = os.path.join(SCRIPT_DIR, "..", "videos", f"{run_name}_{cfg.state}_update_{update}_eval.mp4")
+            evaluate_and_record(agent, eval_env, num_episodes=2, video_path=video_path, max_timesteps=cfg.max_timesteps)
+            
+            if os.path.exists(video_path):
+                metrics.update({"gameplay_video": wandb.Video(video_path, format="mp4")})
+
+        wandb.log(metrics)
 
 
     print("Training complete. Saving final checkpoint...")

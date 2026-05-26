@@ -12,6 +12,62 @@ import argparse
 GAME_NAME = "SuperMarioKart-Snes"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+def evaluate_and_record(agent, env, num_episodes=1, video_path=None, max_timesteps=-1):
+    fps = 15
+    video_writer = None
+
+    if video_path:
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        probe_frame = env.render()
+        if probe_frame is None:
+            probe_frame = np.zeros((240, 256, 3), dtype=np.uint8)
+        height, width = probe_frame.shape[:2]
+        video_writer = cv2.VideoWriter(str(video_path), fourcc, fps, (width, height))
+
+    episode_returns = []
+    episode_lengths = []
+
+    for episode_idx in range(num_episodes):
+        state, info = env.reset()
+        if video_writer is not None:
+            frame = env.render()
+            if frame is not None:
+                video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+        episode_over = False
+        t = 0
+        episode_return = 0
+
+        while not episode_over and (max_timesteps <= 0 or t < max_timesteps):
+            action = agent.action_select(state)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            episode_return += reward
+
+            if video_writer is not None:
+                frame = env.render()
+                if frame is not None:
+                    video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+            episode_over = terminated or truncated
+            state = next_state
+            t += 1
+
+        episode_returns.append(episode_return)
+        episode_lengths.append(t)
+
+        print(f"Episode {episode_idx + 1} completed:")
+        print(f"    Return: {episode_return}")
+        print(f"    Length: {t} steps")
+
+    if video_writer is not None:
+        video_writer.release()
+        print(f"Video saved to: {video_path}")
+
+    avg_return = np.mean(episode_returns)
+    avg_length = np.mean(episode_lengths)
+    return avg_return, avg_length
+
+
 def main(agent_name, run_name, checkpoint_arg, record=False, num_episodes=1):
     agent_module_name = f"src.agents.{agent_name}.agent"
     try:
@@ -54,61 +110,17 @@ def main(agent_name, run_name, checkpoint_arg, record=False, num_episodes=1):
     agent = agent_class(None, **hyperparams)
     start_update = agent.load_checkpoint(load_base_path)
 
-    episode_returns = []
-    episode_lengths = []
-
+    video_path = None
     if record:
         output_dir = PROJECT_ROOT / "videos"
         output_dir.mkdir(parents=True, exist_ok=True)
-        fps = 60
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        probe_frame = env.render()
-        if probe_frame is None:
-            probe_frame = np.zeros((240, 256, 3), dtype=np.uint8)
-        height, width = probe_frame.shape[:2]
-        combined_video_path = output_dir / f"{agent_name}_{cfg.state}_update_{start_update}_eval.mp4"
-        video_writer = cv2.VideoWriter(str(combined_video_path), fourcc, fps, (width, height))
+        video_path = output_dir / f"{agent_name}_{cfg.state}_update_{start_update}_eval.mp4"
 
     print(f"Starting evaluation on {cfg.state}...")
-
-    for episode_idx in range(num_episodes):
-        state, info = env.reset()
-        if record:
-            frame = env.render()
-            if frame is not None:
-                video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-
-        episode_over = False
-        t = 0
-        episode_return = 0
-
-        while not episode_over and (cfg.max_timesteps <= 0 or t < cfg.max_timesteps):
-            action = agent.action_select(state)
-            next_state, reward, terminated, truncated, info = env.step(action)
-            episode_return += reward
-
-            if record:
-                frame = env.render()
-                if frame is not None:
-                    video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-
-            episode_over = terminated or truncated
-            state = next_state
-            t += 1
-
-        episode_returns.append(episode_return)
-        episode_lengths.append(t)
-
-        print(f"Episode {episode_idx + 1} completed:")
-        print(f"    Return: {episode_return}")
-        print(f"    Length: {t} steps")
-
-    if record:
-        video_writer.release()
-        print(f"Video saved to: {combined_video_path}")
-
-    avg_return = np.mean(episode_returns)
-    avg_length = np.mean(episode_lengths)
+    
+    avg_return, avg_length = evaluate_and_record(
+        agent, env, num_episodes=num_episodes, video_path=video_path, max_timesteps=cfg.max_timesteps
+    )
     print(f"--- Average over {num_episodes} test episodes ---")
     print(f"    Avg Return: {avg_return:.2f}")
     print(f"    Avg Length: {avg_length:.2f}")
