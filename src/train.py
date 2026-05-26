@@ -49,7 +49,6 @@ def main():
     total_timesteps = hyperparams["total_timesteps"]
     rollout_steps = hyperparams["rollout_steps"]
     num_envs = hyperparams["num_envs"]
-    video_freq = hyperparams["video_freq"]
 
     agent_module_name = f"src.agents.{args.agent}.agent"
     try:
