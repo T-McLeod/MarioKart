@@ -17,12 +17,16 @@ def evaluate_and_record(agent, env, num_episodes=1, video_path=None, max_timeste
     video_writer = None
 
     if video_path:
+        video_path = Path(video_path)
+        os.makedirs(video_path.parent, exist_ok=True)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         probe_frame = env.render()
         if probe_frame is None:
             probe_frame = np.zeros((240, 256, 3), dtype=np.uint8)
         height, width = probe_frame.shape[:2]
         video_writer = cv2.VideoWriter(str(video_path), fourcc, fps, (width, height))
+        if not video_writer.isOpened():
+            raise RuntimeError(f"Failed to open video writer for output path: {video_path}")
 
     episode_returns = []
     episode_lengths = []
