@@ -343,6 +343,10 @@ class PPONatureAgent(BaseAgent):
         return self.custom_metrics
 
     @classmethod
+    def get_scenario(cls):
+        return "ppo_scenario"
+
+    @classmethod
     def get_wrappers(cls, verbose=False):
         # mirrors CleanRL's atari wrapper stack for Mario Kart
         # MaxAndSkipEnv, FrameStack -- CleanRL
@@ -358,10 +362,8 @@ class PPONatureAgent(BaseAgent):
         action_map = [np.array(a, dtype=np.int8) for a in DISCOVERY_ACTIONS]
         wrappers.append(lambda env: DiscreteActionWrapper(env, action_map=action_map))
 
-        # Same wrapper rewards as DQN for fair environment comparison.
         wrappers.append(lambda env: EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5))
-        wrappers.append(lambda env: SpeedReward(env, scale=0.0001))
-        # wrappers.append(CompleteLapReward)
+        wrappers.append(lambda env: CompleteLapReward(env, lap_reward=100))
 
         wrappers.append(lambda env: RewardScaling(env, scale=0.01))  # PPO-specific reward scaling
 

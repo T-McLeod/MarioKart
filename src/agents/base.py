@@ -11,6 +11,15 @@ class BaseAgent(ABC):
         self.total_timesteps = kwargs.get('total_timesteps', 1_000_000)
 
     @classmethod
+    def get_scenario(cls):
+        """
+        Returns the scenario name used by stable_retro.make().
+        Agents can override this to use a custom scenario.json with
+        different Lua reward/done scripts.
+        """
+        return "scenario"
+
+    @classmethod
     @abstractmethod
     def get_wrappers(cls, verbose=False):
         """

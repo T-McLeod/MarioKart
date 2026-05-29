@@ -19,9 +19,10 @@ fi
 
 export APPTAINERENV_PYTHONUNBUFFERED=1
 export APPTAINERENV_PYTHONNOUSERSITE=1
+export MODEL_NAME="long-horizon-v1.0"
 
 # Create output directories on the host so they can be bound
 mkdir -p models videos wandb container_home
 
 # EDIT REQUIRED: Update 'my_model.sif' in the command below to match your compiled Apptainer image name if different.
-apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.train --agent ppo_nature --name \"long-horizon-v1.0\" --gae-lambda 0.98 --rollout-steps 4096 --n-epochs 8 --total-timesteps 50000000 --no-improve-tolerance 999999 --learning-rate 0.0001 --num-envs 8 & wait"
+apptainer exec --nv --no-home --bind models:/workspace/MarioKart/models,videos:/workspace/MarioKart/videos,wandb:/workspace/MarioKart/wandb --pwd /workspace/MarioKart my_model.sif bash -c "python -u -m src.train --agent ppo_nature --name \"$MODEL_NAME\" --gae-lambda 0.98 --rollout-steps 4096 --n-epochs 8 --total-timesteps 50000000 --no-improve-tolerance 999999 --learning-rate 0.0001 --num-envs 8 & wait"

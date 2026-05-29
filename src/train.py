@@ -77,7 +77,7 @@ def main():
             env = stable_retro.make(
                 game=GAME_NAME,
                 state=cfg.state,
-                scenario=cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
+                scenario=agent_class.get_scenario(),
                 render_mode="rgb_array",
                 inttype=stable_retro.data.Integrations.ALL
             )
