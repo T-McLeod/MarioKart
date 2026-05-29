@@ -101,7 +101,7 @@ def main(agent_name, run_name, checkpoint_arg, record=False, num_episodes=1):
     env = stable_retro.make(
         game=GAME_NAME,
         state=cfg.state,
-        scenario=cfg.scenario if hasattr(cfg, "scenario") else 'scenario',
+        scenario=agent_class.get_scenario(),
         render_mode=render_mode,
         inttype=stable_retro.data.Integrations.ALL
     )

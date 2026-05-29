@@ -1,0 +1,12 @@
+{
+  "done": {
+    "script": "lua:isDoneTrain"
+  },
+  "reward":{
+    "script": "lua:getRewardPPO"
+  },
+  "scripts": [
+    "script.lua",
+    "ppo_script.lua"
+  ]
+}
