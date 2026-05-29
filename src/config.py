@@ -54,6 +54,7 @@ import glob
 import re
 
 PPO_HYPERPARAMS = {
+    "seed": 42,
     "learning_rate": 5e-5,
     "rollout_steps": 2048,
     "minibatch_size": 256,
@@ -75,8 +76,9 @@ def parse_args():
     parser.add_argument("--name", type=str, default=None, help="Name of the run")
     parser.add_argument("--checkpoint", type=int, default=None, help="Specific update number to resume from")
     parser.add_argument("--agent", type=str, required=True, help="Agent name (e.g. ppo_nature, ppo_impala)")
-    
+
     # Hyperparameters (default None to detect if they were explicitly provided)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--learning-rate", type=float, default=None)
     parser.add_argument("--rollout-steps", type=int, default=None)
     parser.add_argument("--minibatch-size", type=int, default=None)

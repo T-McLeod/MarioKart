@@ -26,4 +26,4 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 
 # Set the default command to launch your training script
-CMD ["python", "-u", "-m", "src.ppo_train"]
+CMD ["python", "-u", "-m", "src.train", "--agent", "ppo_nature"]

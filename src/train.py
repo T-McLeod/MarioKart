@@ -4,6 +4,7 @@ import importlib
 import inspect
 from . import config as cfg
 from .eval import evaluate_and_record
+from .utils import seed_everything
 import numpy as np
 import os
 import cv2
@@ -44,6 +45,8 @@ def main():
             if key in wandb.config:
                 hyperparams[key] = wandb.config[key]
 
+    seed_everything(hyperparams["seed"])
+
     checkpoint_prefix, load_base_path, start_update = cfg.resolve_run_config(run_name, args.checkpoint)
 
     total_timesteps = hyperparams["total_timesteps"]
@@ -68,7 +71,9 @@ def main():
     # Dummy env for agent init
     agent = agent_class(None, **hyperparams)
 
-    def make_env(idx):
+    base_seed = hyperparams["seed"]
+
+    def make_env(idx, seed):
         def _init():
             # Must register custom path inside the worker process because we use multiprocessing 'spawn'
             custom_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "custom_integrations"))
@@ -83,15 +88,16 @@ def main():
             )
             for wrapper in agent_class.get_wrappers():
                 env = wrapper(env)
+            env.action_space.seed(seed)
             return env
         return _init
 
     envs = gym.vector.AsyncVectorEnv(
-        [make_env(i) for i in range(num_envs)],
+        [make_env(i, base_seed + i) for i in range(num_envs)],
         context="spawn"
     )
 
-    eval_env = make_env(99)()
+    eval_env = make_env(99, base_seed + 9999)()
 
     # Checkpoint loading logic
     if load_base_path is not None:
