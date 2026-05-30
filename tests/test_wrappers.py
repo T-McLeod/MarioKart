@@ -8,10 +8,9 @@ from src.wrapper import (
     MarioToPyTorch,
     DiscreteActionWrapper,
     MaxAndSkipEnv,
-    EarlyTermination,
     SpeedReward,
     CompleteLapReward,
-    RewardSaling,
+    RewardScaling,
 )
 from tests.helpers import MockRetroEnv
 
