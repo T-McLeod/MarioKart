@@ -109,7 +109,7 @@ def main():
     num_updates = (total_timesteps // rollout_steps)
     last_logged_video = None
 
-    state, info = envs.reset()
+    state, info = envs.reset(seed=[base_seed + i for i in range(num_envs)])
     episode_returns = np.zeros(num_envs)
     episode_lengths = np.zeros(num_envs)
     
