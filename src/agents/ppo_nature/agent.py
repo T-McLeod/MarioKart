@@ -33,15 +33,6 @@ else:
 print(f"Using device: {device}")
 
 
-# reduced from full SNES button space
-SIMPLE_ACTIONS = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # idle
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # gas
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # gas + left
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # gas + right
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # brake
-]
-
 DISCOVERY_ACTIONS = [
     # --- The Basics (4) ---
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: Idle / Coasting
