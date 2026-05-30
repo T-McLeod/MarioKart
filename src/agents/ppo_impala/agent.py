@@ -1,8 +1,9 @@
 import torch
 import os
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import Categorical
+import torch
+import os
+import torch.nn as nn
 import numpy as np
 import uuid
 from gymnasium.wrappers import FrameStackObservation
@@ -16,7 +17,6 @@ from ...wrapper import (
     MarioToPyTorch,
     MaxAndSkipEnv,
     EarlyTermination,
-    SpeedReward,
     CompleteLapReward,
     RewardScaling,
 )
