@@ -3,20 +3,14 @@ import numpy as np
 import pytest
 import torch
 
-from src.agents.ppo_nature.agent import PPONatureAgent
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 NUM_ENVS = 2
 OBS_SHAPE = (4, 84, 84)
 
 
 @pytest.fixture
-def agent():
-    return PPONatureAgent(
+def agent(agent_cls):
+    return agent_cls(
         env=None,
         rollout_steps=8,
         minibatch_size=4,
@@ -36,10 +30,6 @@ def _fill_buffer(agent, steps=4, reward=1.0, value=0.5, done=0.0):
         agent._rb_values.append(np.full(NUM_ENVS, value, dtype=np.float32))
         agent._rb_dones.append(np.full(NUM_ENVS, done, dtype=np.float32))
 
-
-# ---------------------------------------------------------------------------
-# GAE correctness
-# ---------------------------------------------------------------------------
 
 def _compute_gae(rewards, values, dones, last_value, last_done, discount=0.99, lam=0.95):
     """Reference implementation of the GAE loop (mirrors agent._ppo_update)."""
@@ -72,14 +62,9 @@ def test_gae_non_terminal_single_env():
 
     adv = _compute_gae(rewards, values, dones, last_value, last_done, discount, lam)
 
-    # t=2: delta = 1 + 0.99*0.5 - 0.5 = 0.995
     np.testing.assert_allclose(adv[2], [0.995], rtol=1e-5)
-    # t=1: delta = 0 + 0.99*0.5 - 0.5 = -0.005
-    #      adv   = -0.005 + 0.99*0.95*0.995
     expected_t1 = -0.005 + discount * lam * 0.995
     np.testing.assert_allclose(adv[1], [expected_t1], rtol=1e-5)
-    # t=0: delta = 1 + 0.99*0.5 - 0.5 = 0.995
-    #      adv   = 0.995 + 0.99*0.95*expected_t1
     expected_t0 = 0.995 + discount * lam * expected_t1
     np.testing.assert_allclose(adv[0], [expected_t0], rtol=1e-5)
 
@@ -89,16 +74,13 @@ def test_gae_done_zeroes_bootstrap():
     discount, lam = 0.99, 0.95
     rewards = np.array([[1.0], [1.0]], dtype=np.float32)
     values  = np.array([[0.5], [0.5]], dtype=np.float32)
-    # Episode ends after step 0
     dones   = np.array([[1.0], [0.0]], dtype=np.float32)
     last_value = np.array([0.5], dtype=np.float32)
     last_done  = np.zeros(1, dtype=np.float32)
 
     adv = _compute_gae(rewards, values, dones, last_value, last_done, discount, lam)
 
-    # t=1: no done, bootstrap applies → delta = 1 + 0.99*0.5 - 0.5 = 0.995
     np.testing.assert_allclose(adv[1], [0.995], rtol=1e-5)
-    # t=0: done=1, non_terminal=0 → delta = 1 + 0 - 0.5 = 0.5, no further bootstrap
     np.testing.assert_allclose(adv[0], [0.5], rtol=1e-5)
 
 
@@ -108,19 +90,13 @@ def test_gae_last_done_zeroes_final_bootstrap():
     rewards = np.array([[1.0]], dtype=np.float32)
     values  = np.array([[0.5]], dtype=np.float32)
     dones   = np.zeros((1, 1), dtype=np.float32)
-    last_value = np.array([100.0], dtype=np.float32)   # large; should be zeroed
-    last_done  = np.ones(1, dtype=np.float32)          # episode ended
+    last_value = np.array([100.0], dtype=np.float32)
+    last_done  = np.ones(1, dtype=np.float32)
 
     adv = _compute_gae(rewards, values, dones, last_value, last_done, discount, lam)
 
-    # non_terminal = 0 → delta = 1 + 0 - 0.5 = 0.5
     np.testing.assert_allclose(adv[0], [0.5], rtol=1e-5)
 
-
-
-# ---------------------------------------------------------------------------
-# PPO update: smoke tests
-# ---------------------------------------------------------------------------
 
 def test_ppo_update_runs_without_error(agent):
     _fill_buffer(agent)
@@ -150,10 +126,6 @@ def test_ppo_update_changes_network_weights(agent):
     assert changed, "PPO update left all weights unchanged"
 
 
-# ---------------------------------------------------------------------------
-# Rollout buffer
-# ---------------------------------------------------------------------------
-
 def test_rollout_buffer_flushes_after_init(agent):
     _fill_buffer(agent, steps=4)
     assert len(agent._rb_states) == 4
@@ -164,10 +136,9 @@ def test_rollout_buffer_flushes_after_init(agent):
 
 def test_update_triggers_ppo_at_rollout_boundary(agent):
     """Calling update() enough times to fill the buffer should trigger _ppo_update."""
-    steps_per_env = agent.rollout_steps // NUM_ENVS  # 8 / 2 = 4
+    steps_per_env = agent.rollout_steps // NUM_ENVS
     obs = np.random.rand(NUM_ENVS, *OBS_SHAPE).astype(np.float32)
 
-    # Prime cached values so update() doesn't crash on None
     agent._cached_log_prob = np.zeros(NUM_ENVS, dtype=np.float32)
     agent._cached_value    = np.zeros(NUM_ENVS, dtype=np.float32)
 
@@ -175,5 +146,4 @@ def test_update_triggers_ppo_at_rollout_boundary(agent):
         agent.update(obs, np.zeros(NUM_ENVS, dtype=np.int64),
                      np.ones(NUM_ENVS), obs, np.zeros(NUM_ENVS, dtype=bool))
 
-    # Buffer should have been flushed after the update
     assert len(agent._rb_states) == 0

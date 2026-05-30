@@ -1,9 +1,6 @@
 import torch
 import os
 import torch.nn as nn
-import torch
-import os
-import torch.nn as nn
 import numpy as np
 import uuid
 from gymnasium.wrappers import FrameStackObservation
@@ -22,7 +19,6 @@ from ...wrapper import (
 )
 
 
-# device selection — CleanRL ppo_atari.py
 if torch.cuda.is_available():
     device = torch.device("cuda")
 elif torch.backends.mps.is_available():
@@ -34,33 +30,28 @@ print(f"Using device: {device}")
 
 
 DISCOVERY_ACTIONS = [
-    # --- The Basics (4) ---
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0: Idle / Coasting
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1: Gas
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 2: Gas + Left
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 3: Gas + Right
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
 
-    # --- Braking & Correction (3) ---
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4: Brake / Reverse
-    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # 5: Brake + Left (Sharp correction)
-    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 6: Brake + Right
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
 
-    # --- Advanced Physics: Drifting (3) ---
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7: Gas + Hop (Initiate Drift)
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],  # 8: Gas + Left + Drift (Tight Corner)
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],  # 9: Gas + Right + Drift
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
 
-    # --- Combat & Item Usage (3) ---
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # 10: Gas + Item
-    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 11: Gas + Left + Item
-    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 12: Gas + Right + Item
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 13: Gas + Drift + Item
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 14: Gas + Left + Drift + Item
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],  # 15: Gas + Right + Drift + Item
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],
 
-    # --- The "Weird" Combos (2) ---
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16: Gas + Brake
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17: Brake + Hop (Emergency stop turn)
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]
 
 
@@ -73,12 +64,12 @@ class PPOImpalaAgent(BaseAgent):
         rollout_steps=2048,
         minibatch_size=256,
         n_epochs=4,
-        clip_coef=0.1,            # CleanRL atari default
-        vf_coef=0.5,              # CleanRL default
+        clip_coef=0.1,
+        vf_coef=0.5,
         ent_coef_start=0.03,
         ent_coef_end=0.01,
         gae_lambda=0.95,
-        max_grad_norm=0.5,        # CleanRL default
+        max_grad_norm=0.5,
         total_timesteps=3_000_000,
         no_improve_tolerance=999999,
         verbose=False,
@@ -98,7 +89,6 @@ class PPOImpalaAgent(BaseAgent):
         self.max_grad_norm = max_grad_norm
         self.verbose = verbose
 
-        # early stopping
         self.no_improve_tolerance = no_improve_tolerance
         self.best_avg_return = float("-inf")
         self.intervals_without_improvement = 0
@@ -110,7 +100,6 @@ class PPOImpalaAgent(BaseAgent):
         self.num_actions = len(self.action_set)
 
         self.ac_net = ImpalaCNN(self.num_actions).to(device)
-        # eps=1e-5 -- CleanRL
         self.optimizer = torch.optim.Adam(
             self.ac_net.parameters(),
             lr=learning_rate,
@@ -130,7 +119,6 @@ class PPOImpalaAgent(BaseAgent):
         self._rb_dones = []
 
     def record_return(self, avg_return):
-        # early stopping implemented
         if avg_return > self.best_avg_return + 1.0:
             self.best_avg_return = avg_return
             self.intervals_without_improvement = 0
@@ -146,7 +134,6 @@ class PPOImpalaAgent(BaseAgent):
             self.should_stop = True
 
     def action_select(self, state):
-        # state is batched (num_envs, 4, 84, 84) or unbatched (4, 84, 84)
         is_single = len(state.shape) == 3
         if is_single:
             state = np.expand_dims(state, axis=0)
@@ -178,20 +165,16 @@ class PPOImpalaAgent(BaseAgent):
             self._init_rollout_buffer()
 
     def _ppo_update(self, last_next_state, last_done):
-        # core update adapted from CleanRL ppo_atari.py
         progress = min(self.steps / self.total_timesteps, 1.0)
 
-        # entropy decay
         ent_coef = self.ent_coef_start + progress * (
             self.ent_coef_end - self.ent_coef_start
         )
 
-        #lr annealing — CleanRL: frac = 1 - (iter-1)/num_iters
         lr = max(self.learning_rate * (1.0 - progress), 1e-6)
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
 
-        #CleanRL idea used
         with torch.no_grad():
             last_state_t = torch.tensor(
                 last_next_state,
@@ -209,7 +192,6 @@ class PPOImpalaAgent(BaseAgent):
         advantages = np.zeros_like(rewards, dtype=np.float32)
         last_gae = np.zeros_like(last_value, dtype=np.float32)
 
-        #GAE — CleanRL
         for t in reversed(range(T)):
             if t == T - 1:
                 non_terminal = 1.0 - np.array(last_done, dtype=np.float32)
@@ -228,9 +210,8 @@ class PPOImpalaAgent(BaseAgent):
             )
             advantages[t] = last_gae
 
-        returns = advantages + values  #CleanRL
+        returns = advantages + values
 
-        # flatten buffer to tensors — CleanRL "flatten the batch"
         b_states = torch.tensor(np.array(self._rb_states), dtype=torch.float32).contiguous().to(device).view(-1, 4, 84, 84)
         b_actions = torch.tensor(np.array(self._rb_actions), dtype=torch.long).to(device).view(-1)
         b_old_log_probs = torch.tensor(np.array(self._rb_log_probs), dtype=torch.float32).to(device).view(-1)
@@ -238,7 +219,6 @@ class PPOImpalaAgent(BaseAgent):
         b_returns = torch.tensor(returns, dtype=torch.float32).to(device).view(-1)
         b_old_values = torch.tensor(values, dtype=torch.float32).to(device).view(-1)
 
-        # advantage normalization — CleanRL norm_adv=True
         b_advantages = (b_advantages - b_advantages.mean()) / (
             b_advantages.std() + 1e-8
         )
@@ -260,13 +240,11 @@ class PPOImpalaAgent(BaseAgent):
 
                 new_values = new_values.view(-1)
 
-                #KL
                 log_ratio = new_log_probs - b_old_log_probs[mb_idx]
                 ratio = log_ratio.exp()
 
                 mb_adv = b_advantages[mb_idx]
 
-                #CleanRL
                 pg_loss_1 = -mb_adv * ratio
                 pg_loss_2 = -mb_adv * torch.clamp(
                     ratio,
@@ -275,7 +253,6 @@ class PPOImpalaAgent(BaseAgent):
                 )
                 pg_loss = torch.max(pg_loss_1, pg_loss_2).mean()
 
-                # clipped value loss from CleanRL clip_vloss=True
                 value_clipped = b_old_values[mb_idx] + torch.clamp(
                     new_values - b_old_values[mb_idx],
                     -self.clip_coef,
@@ -291,7 +268,6 @@ class PPOImpalaAgent(BaseAgent):
 
                 entropy_loss = entropy.mean()
 
-                # combined loss — CleanRL
                 loss = (
                     pg_loss
                     + self.vf_coef * v_loss
@@ -300,14 +276,12 @@ class PPOImpalaAgent(BaseAgent):
 
                 self.optimizer.zero_grad()
                 loss.backward()
-                # grad clipping — CleanRL
                 nn.utils.clip_grad_norm_(
                     self.ac_net.parameters(),
                     self.max_grad_norm,
                 )
                 self.optimizer.step()
 
-                #approx kl
                 approx_kl = ((ratio - 1.0) - log_ratio).mean().item()
 
                 if approx_kl > 0.04:
@@ -337,8 +311,6 @@ class PPOImpalaAgent(BaseAgent):
 
     @classmethod
     def get_wrappers(cls, verbose=False):
-        # mirrors CleanRL's atari wrapper stack for Mario Kart
-        # MaxAndSkipEnv, FrameStack -- CleanRL
         wrappers = []
         if verbose:
             wrappers.append(DebugObservation)
@@ -354,7 +326,7 @@ class PPOImpalaAgent(BaseAgent):
         wrappers.append(lambda env: EarlyTermination(env, max_no_progress_steps=600, stuck_penalty=-5))
         wrappers.append(lambda env: CompleteLapReward(env, lap_reward=100))
 
-        wrappers.append(lambda env: RewardScaling(env, scale=0.01))  # PPO-specific reward scaling
+        wrappers.append(lambda env: RewardScaling(env, scale=0.01))
 
         return wrappers
 

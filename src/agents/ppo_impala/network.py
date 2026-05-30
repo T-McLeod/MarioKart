@@ -61,7 +61,6 @@ class ImpalaCNN(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        # infer flattened feature size from a dummy pass (84x84 -> 11x11 -> 32*11*11=3872)
         with torch.no_grad():
             dummy = torch.zeros(1, in_channels, 84, 84)
             n_flatten = self._conv_features(dummy).shape[1]
@@ -74,8 +73,6 @@ class ImpalaCNN(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
-        # orthogonal init mirroring ppo_nature ActorCritic / CleanRL layer_init()
-        # gains: sqrt(2) conv/fc hidden, 0.01 actor, 1.0 critic; biases 0
         for module in self.modules():
             if isinstance(module, (nn.Conv2d, nn.Linear)):
                 nn.init.orthogonal_(module.weight, gain=np.sqrt(2))
@@ -102,8 +99,6 @@ class ImpalaCNN(nn.Module):
         return logits, value
 
     def get_action_and_value(self, x, action=None):
-        # CleanRL Agent.get_action_and_value()
-        # pixel norm handled in MarioToPyTorch
         logits, value = self.forward(x)
         dist = Categorical(logits=logits)
 

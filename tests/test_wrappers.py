@@ -8,6 +8,7 @@ from src.wrapper import (
     MarioToPyTorch,
     DiscreteActionWrapper,
     MaxAndSkipEnv,
+    EarlyTermination,
     SpeedReward,
     CompleteLapReward,
     RewardScaling,

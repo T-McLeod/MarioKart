@@ -1,13 +1,10 @@
-"""Tests for PPONatureAgent checkpoint save/load round-trip."""
+"""Tests for agent checkpoint save/load round-trip (all BaseAgent implementations)."""
 import torch
 import pytest
 
-from src.agents.ppo_nature.agent import PPONatureAgent
 
-
-@pytest.fixture
-def agent():
-    return PPONatureAgent(
+def _build(agent_cls):
+    return agent_cls(
         env=None,
         rollout_steps=512,
         minibatch_size=64,
@@ -16,35 +13,36 @@ def agent():
     )
 
 
-def test_save_load_preserves_step_count(agent, tmp_path):
+@pytest.fixture
+def agent(agent_cls):
+    return _build(agent_cls)
+
+
+def test_save_load_preserves_step_count(agent, agent_cls, tmp_path):
     agent.steps = 99_999
     agent.save_checkpoint(str(tmp_path / "ckpt"), episode=7)
 
-    agent2 = PPONatureAgent(env=None, rollout_steps=512, minibatch_size=64,
-                            n_epochs=1, total_timesteps=10_000)
+    agent2 = _build(agent_cls)
     agent2.load_checkpoint(str(tmp_path / "ckpt"))
     assert agent2.steps == 99_999
 
 
-def test_save_load_preserves_episode_number(agent, tmp_path):
+def test_save_load_preserves_episode_number(agent, agent_cls, tmp_path):
     agent.save_checkpoint(str(tmp_path / "ckpt"), episode=42)
 
-    agent2 = PPONatureAgent(env=None, rollout_steps=512, minibatch_size=64,
-                            n_epochs=1, total_timesteps=10_000)
+    agent2 = _build(agent_cls)
     resumed = agent2.load_checkpoint(str(tmp_path / "ckpt"))
     assert resumed == 42
 
 
-def test_save_load_preserves_network_weights(agent, tmp_path):
-    # Pin all weights to a known value
+def test_save_load_preserves_network_weights(agent, agent_cls, tmp_path):
     with torch.no_grad():
         for p in agent.ac_net.parameters():
             p.fill_(0.42)
 
     agent.save_checkpoint(str(tmp_path / "ckpt"), episode=1)
 
-    agent2 = PPONatureAgent(env=None, rollout_steps=512, minibatch_size=64,
-                            n_epochs=1, total_timesteps=10_000)
+    agent2 = _build(agent_cls)
     agent2.load_checkpoint(str(tmp_path / "ckpt"))
 
     for p in agent2.ac_net.parameters():
@@ -52,9 +50,7 @@ def test_save_load_preserves_network_weights(agent, tmp_path):
             "Network weights not restored correctly after load"
 
 
-def test_save_load_preserves_optimizer_state(agent, tmp_path):
-    # Run a dummy forward/backward to populate optimizer state (momentum buffers etc.)
-    import numpy as np
+def test_save_load_preserves_optimizer_state(agent, agent_cls, tmp_path):
     dummy = torch.zeros(1, 4, 84, 84)
     _, log_prob, entropy, value = agent.ac_net.get_action_and_value(dummy)
     loss = -log_prob.mean() + value.mean()
@@ -64,8 +60,7 @@ def test_save_load_preserves_optimizer_state(agent, tmp_path):
 
     agent.save_checkpoint(str(tmp_path / "ckpt"), episode=1)
 
-    agent2 = PPONatureAgent(env=None, rollout_steps=512, minibatch_size=64,
-                            n_epochs=1, total_timesteps=10_000)
+    agent2 = _build(agent_cls)
     agent2.load_checkpoint(str(tmp_path / "ckpt"))
 
     for (k1, v1), (k2, v2) in zip(
