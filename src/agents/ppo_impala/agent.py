@@ -307,7 +307,7 @@ class PPOImpalaAgent(BaseAgent):
                 )
                 self.optimizer.step()
 
-                #aprrox kl
+                #approx kl
                 approx_kl = ((ratio - 1.0) - log_ratio).mean().item()
 
                 if approx_kl > 0.04:
