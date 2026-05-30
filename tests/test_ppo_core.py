@@ -117,17 +117,6 @@ def test_gae_last_done_zeroes_final_bootstrap():
     np.testing.assert_allclose(adv[0], [0.5], rtol=1e-5)
 
 
-def test_gae_returns_equal_advantages_plus_values():
-    """returns = advantages + values is the CleanRL convention."""
-    rewards = np.array([[1.0], [1.0]], dtype=np.float32)
-    values  = np.array([[0.5], [0.5]], dtype=np.float32)
-    dones   = np.zeros((2, 1), dtype=np.float32)
-    last_value = np.array([0.5], dtype=np.float32)
-
-    adv = _compute_gae(rewards, values, dones, last_value, np.zeros(1))
-    returns = adv + values
-    np.testing.assert_allclose(returns, adv + values, rtol=1e-6)
-
 
 # ---------------------------------------------------------------------------
 # PPO update: smoke tests
