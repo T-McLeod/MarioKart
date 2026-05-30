@@ -81,3 +81,6 @@ models/
 plots/
 wandb/
 videos/
+
+# Claude Code memory (local AI assistant context — not for version control)
+memory/
