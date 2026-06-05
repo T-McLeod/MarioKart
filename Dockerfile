@@ -23,6 +23,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Ensure the host-bind mountpoints exist inside the image. They are gitignored
+# (so absent from `COPY . .`), and Apptainer cannot create bind targets on a
+# read-only .sif — without these dirs the --bind silently fails and wandb/models/
+# videos fall back to an ephemeral temp dir.
+RUN mkdir -p /workspace/MarioKart/models /workspace/MarioKart/videos /workspace/MarioKart/wandb
+
 ENV PYTHONUNBUFFERED=1
 
 # Set the default command to launch your training script

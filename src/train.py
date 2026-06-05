@@ -26,18 +26,24 @@ def main():
         "max_timesteps": cfg.max_timesteps,
         **hyperparams
     }
+    
+    in_sweep = os.environ.get("WANDB_SWEEP_ID") is not None
 
-    run_name = args.name if args.name else wandb.util.generate_id()
-    wandb.init(
-        project="mariokart-rl", 
-        id=run_name, 
-        name=run_name, 
-        resume="allow", 
-        config=wandb_config
-    )
+    if in_sweep:
+        wandb.init(config=wandb_config)
+        run_name = wandb.run.id
+    else:
+        run_name = args.name if args.name else wandb.util.generate_id()
+        wandb.init(
+            project="mariokart-rl",
+            id=run_name,
+            name=run_name,
+            resume="allow",
+            config=wandb_config
+        )
     print("WANDB INIT DONE - PROCEEDING TO ENV SETUP", flush=True)
 
-    if wandb.run.resumed:
+    if not in_sweep and wandb.run.resumed:
         if provided_hyperparams:
             raise ValueError("Cannot override hyperparameters when resuming! The original hyperparameters must be used.")
         print("Run resumed from W&B! Loading original hyperparameters from cloud config.")
