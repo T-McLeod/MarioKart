@@ -11,7 +11,7 @@ metric:
 early_terminate:
   type: hyperband
   eta: 3
-  min_iter: 150                  # see "Hyperband caveat" in the plan; tune after a dry run
+  min_iter: 1000000
 
 parameters:
   learning-rate:
@@ -33,7 +33,7 @@ command:
   - --agent
   - ppo_nature
   - --total-timesteps
-  - "3000000"
+  - "6000000"
   - --num-envs
   - "8"                          # match the 8 CPUs allocated per job; fixed for all of Phase 1
   - --checkpoint-freq

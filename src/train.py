@@ -43,6 +43,9 @@ def main():
         )
     print("WANDB INIT DONE - PROCEEDING TO ENV SETUP", flush=True)
 
+    wandb.define_metric("global_step")
+    wandb.define_metric("*", step_metric="global_step")
+
     if not in_sweep and wandb.run.resumed:
         if provided_hyperparams:
             raise ValueError("Cannot override hyperparameters when resuming! The original hyperparameters must be used.")
@@ -181,7 +184,7 @@ def main():
             if os.path.exists(video_path):
                 metrics.update({"gameplay_video": wandb.Video(video_path, format="mp4")})
 
-        wandb.log(metrics)
+        wandb.log(metrics, step=global_step)
 
 
     print("Training complete. Saving final checkpoint...")

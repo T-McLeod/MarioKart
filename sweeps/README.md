@@ -1,7 +1,7 @@
 # Phase 1 · Step 1 — PPO Hyperparameter Sweep (Nature-CNN baseline)
 
 Bayesian W&B sweep over 4 PPO hyperparameters to find strong, architecture-neutral
-hyperparameters before the Nature-CNN vs IMPALA comparison. ~20 runs × 3,000,000
+hyperparameters before the Nature-CNN vs IMPALA comparison. ~20 runs × 6,000,000
 timesteps on `MarioCircuit2_M`, with Hyperband early termination, deployed as a
 SLURM job array of Apptainer containers (max 4 concurrent).
 
@@ -148,12 +148,15 @@ the sweep for the full run.
   `Dockerfile`; rebuild the image. (Non-fatal: metrics still sync to the cloud from
   the temp dir, but the final checkpoint save and local run dirs would be lost.)
 
-## Caveat — Hyperband fairness across rollout-steps
+## Hyperband bracketing (env-step based)
 
-Runs with different `rollout-steps` log `avg_return` at different cadences (1024-step
-runs log ~4× more often than 4096-step runs), and `src/train.py` logs with
-auto-incrementing W&B steps. Hyperband brackets on logged-step count, so kill points
-map to slightly different env-step progress across settings — acceptable for a coarse
-sweep. `min_iter: 150` is a conservative first guess; after 2–3 completed runs, check
-where Hyperband cuts and adjust. If strict fairness later matters, the only code
-change needed is logging with `wandb.log(metrics, step=global_step)`.
+`src/train.py` logs with `wandb.log(metrics, step=global_step)`, so the x-axis is
+**environment steps** and W&B Hyperband brackets on env-steps — runs with different
+`rollout-steps` are compared at **equal experience** (this fixes the earlier unfair
+early-culling of small-batch runs, which were judged at low update counts).
+
+`min_iter` in the sweep YAML is therefore in **env-step units**. With `min_iter:
+1000000` and `eta: 3`, bracket cuts fall at **1M** and **3M** env steps (of 6M
+total): every run trains to ≥ 1M env steps before any cut. Lower `min_iter` to cut
+earlier/more aggressively; raise it to cut later. After 2–3 runs, confirm the first
+cut lands near the expected env-step count and adjust.
