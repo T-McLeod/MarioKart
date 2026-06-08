@@ -14,10 +14,14 @@
 
 set -euo pipefail
 
-# EDIT REQUIRED: scratch space and image name.
-XTMP=/usr/project/xtmp/tm419
-IMAGE="$XTMP/my_model.sif"
+# Scratch space and image name can be overridden via env vars.
+XTMP="${XTMP:-/usr/project/xtmp/${USER}}"
+IMAGE="${IMAGE:-$XTMP/my_model.sif}"
 
+if [ ! -f "$IMAGE" ]; then
+    echo "Error: Apptainer image not found at $IMAGE"
+    exit 1
+fi
 # Require WANDB_API_KEY in the environment before submission.
 if [ -z "${WANDB_API_KEY:-}" ]; then
     echo "Error: WANDB_API_KEY is not set. Please export it before submitting."
