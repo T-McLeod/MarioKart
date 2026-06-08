@@ -114,7 +114,7 @@ In the W&B UI confirm:
 - config `state` is `MarioCircuit2_M`;
 - no `wandb/ wasn't writable` warning (binds attached), and no mid-run eval/video.
 
-Then restore `--total-timesteps` to `3000000` and `--array` to `0-19%4`, and recreate
+Then restore `--total-timesteps` to `6000000` and `--array` to `0-19%4`, and recreate
 the sweep for the full run.
 
 ## Selecting the winner
