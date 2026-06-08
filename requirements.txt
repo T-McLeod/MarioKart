@@ -1,7 +1,6 @@
 # Top-Level RL & Env Packages
 gymnasium
 stable-retro
-stable_baselines3
 wandb==0.16.6
 numpy<2
 
@@ -15,7 +14,9 @@ pandas
 
 # Deep Learning
 # Note: Removed local NVIDIA/CUDA bindings to let the cluster use its own
-# Removed torch because it is already pre-installed in the pytorch/pytorch base image
+# Pinned to the base image's version (pytorch/pytorch:2.1.0-cuda12.1) to keep
+# Volta/sm_70 support for the V100 GPUs; do not let it upgrade.
+torch==2.1.0
 
 # MLOps & Video
 moviepy
