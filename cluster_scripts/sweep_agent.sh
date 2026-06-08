@@ -50,4 +50,4 @@ export APPTAINERENV_MK_STATE=MarioCircuit2_M         # select the map inside the
 apptainer exec --nv --no-home \
   --bind "$SWEEP_DIR/models":/workspace/MarioKart/models,"$SWEEP_DIR/videos":/workspace/MarioKart/videos,"$SWEEP_DIR/wandb":/workspace/MarioKart/wandb \
   --pwd /workspace/MarioKart "$IMAGE" \
-  bash -c "wandb agent --count 1 $SWEEP_ID & wait"
+  bash -lc 'wandb agent --count 1 "$SWEEP_ID"'
