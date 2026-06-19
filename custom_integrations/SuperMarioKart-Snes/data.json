@@ -96,6 +96,38 @@
       "address": 4330,
       "type": "<i2"
     },
+    "kart2_X": {
+      "address": 138,
+      "type": "<i2"
+    },
+    "kart2_Y": {
+      "address": 142,
+      "type": "<i2"
+    },
+    "kart2_checkpoint": {
+      "address": 4572,
+      "type": "|u1"
+    },
+    "kart2_direction": {
+      "address": 151,
+      "type": "|u1"
+    },
+    "kart2_lap": {
+      "address": 4545,
+      "type": "|u1"
+    },
+    "kart2_rank": {
+      "address": 4416,
+      "type": "|u1"
+    },
+    "kart2_speed": {
+      "address": 4586,
+      "type": "<i2"
+    },
+    "kart2_surface": {
+      "address": 4526,
+      "type": "|u1"
+    },
     "lap": {
       "address": 4289,
       "type": "|u1"

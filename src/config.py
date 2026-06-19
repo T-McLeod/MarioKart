@@ -71,13 +71,21 @@ PPO_HYPERPARAMS = {
     "checkpoint_freq": 100,
 }
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="PPO Mario Kart Training")
+# argparse keys that are NOT PPO hyperparameters (so they don't leak into
+# PPO_HYPERPARAMS via the override loop).
+_NON_HYPERPARAM_ARGS = {"name", "checkpoint", "agent"}
+_NON_HYPERPARAM_ARGS_2P = _NON_HYPERPARAM_ARGS | {
+    "opponent_agent", "opponent_checkpoint", "state", "relative_coef", "stuck_steps",
+}
+
+
+def _add_common_args(parser):
+    """Run identity + the shared PPO hyperparameter flags (default None so only
+    explicitly-provided values override PPO_HYPERPARAMS)."""
     parser.add_argument("--name", type=str, default=None, help="Name of the run")
     parser.add_argument("--checkpoint", type=int, default=None, help="Specific update number to resume from")
     parser.add_argument("--agent", type=str, required=True, help="Agent name (e.g. ppo_nature, ppo_impala)")
 
-    # Hyperparameters (default None to detect if they were explicitly provided)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--learning-rate", type=float, default=None)
     parser.add_argument("--rollout-steps", type=int, default=None)
@@ -93,15 +101,42 @@ def parse_args():
     parser.add_argument("--num-envs", type=int, default=None)
     parser.add_argument("--video-freq", type=int, default=None)
     parser.add_argument("--checkpoint-freq", type=int, default=None)
-    
-    args = parser.parse_args()
-    
+
+
+def _apply_hyperparam_overrides(args, exclude):
+    """Push explicitly-provided hyperparameter args into PPO_HYPERPARAMS."""
     provided_hyperparams = False
     for key, value in vars(args).items():
-        if key not in ["name", "checkpoint", "agent"] and value is not None:
+        if key not in exclude and value is not None:
             provided_hyperparams = True
             PPO_HYPERPARAMS[key] = value
-            
+    return provided_hyperparams
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="PPO Mario Kart Training")
+    _add_common_args(parser)
+    args = parser.parse_args()
+    provided_hyperparams = _apply_hyperparam_overrides(args, _NON_HYPERPARAM_ARGS)
+    return args, provided_hyperparams
+
+
+def parse_args_2p():
+    """Parser for the 2-player Grand Prix training loop (src/train_2p.py)."""
+    parser = argparse.ArgumentParser(description="2-Player PPO Mario Kart Training")
+    _add_common_args(parser)
+    parser.add_argument("--opponent-agent", type=str, default=None,
+                        help="Opponent agent module (default: same as --agent)")
+    parser.add_argument("--opponent-checkpoint", type=str, default=None,
+                        help="Path base (without _model.pth) for frozen opponent weights")
+    parser.add_argument("--state", type=str, default="MarioCircuit_2P",
+                        help="2P Grand Prix savestate name")
+    parser.add_argument("--relative-coef", type=float, default=1.0,
+                        help="Weight of the competitive (relative-progress) reward term")
+    parser.add_argument("--stuck-steps", type=int, default=600,
+                        help="Learner no-progress steps before termination")
+    args = parser.parse_args()
+    provided_hyperparams = _apply_hyperparam_overrides(args, _NON_HYPERPARAM_ARGS_2P)
     return args, provided_hyperparams
 
 def resolve_run_config(run_name, checkpoint_arg):
