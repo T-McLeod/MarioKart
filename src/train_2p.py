@@ -85,23 +85,38 @@ def evaluate_2p_and_record(learner, opponent, env, video_path, num_episodes=1, m
     video_path = Path(video_path)
     os.makedirs(video_path.parent, exist_ok=True)
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    probe = env.render()
-    h, w = probe.shape[:2]
-    writer = cv2.VideoWriter(str(video_path), fourcc, 15, (w, h))
 
-    for _ in range(num_episodes):
-        state, _ = env.reset()
-        writer.write(cv2.cvtColor(env.render(), cv2.COLOR_RGB2BGR))
-        done = False
-        t = 0
-        while not done and (max_timesteps <= 0 or t < max_timesteps):
-            la = learner.action_select(state[0])
-            oa = opponent.action_select(state[1])
-            state, _, terminated, truncated, _ = env.step([la, oa])
-            writer.write(cv2.cvtColor(env.render(), cv2.COLOR_RGB2BGR))
-            done = terminated or truncated
-            t += 1
-    writer.release()
+    probe = env.render()
+    if probe is None:
+        probe = np.zeros((224, 256, 3), dtype=np.uint8)
+    h, w = probe.shape[:2]
+
+    writer = cv2.VideoWriter(str(video_path), fourcc, 15, (w, h))
+    if not writer.isOpened():
+        raise RuntimeError(f"Failed to open video writer for {video_path}")
+
+    try:
+        for _ in range(num_episodes):
+            state, _ = env.reset()
+            frame = env.render()
+            if frame is not None:
+                writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+            done = False
+            t = 0
+            while not done and (max_timesteps <= 0 or t < max_timesteps):
+                la = learner.action_select(state[0])
+                oa = opponent.action_select(state[1])
+                state, _, terminated, truncated, _ = env.step([la, oa])
+
+                frame = env.render()
+                if frame is not None:
+                    writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+                done = terminated or truncated
+                t += 1
+    finally:
+        writer.release()
 
 
 def main():
