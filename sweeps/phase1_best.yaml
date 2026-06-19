@@ -1,0 +1,9 @@
+# Phase 1 · Step 1 — Locked PPO Hyperparameters
+# Selected from the Nature-CNN sweep. Used for all Phase 1 Step 2 comparison runs.
+#
+# Fixed (not swept): minibatch_size 256, n_epochs 2, num_envs 8, gae_lambda 0.95
+
+learning_rate: 3.5e-4
+clip_coef: 0.1
+ent_coef_start: 0.03
+rollout_steps: 2048
