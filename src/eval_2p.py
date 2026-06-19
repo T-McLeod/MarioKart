@@ -12,8 +12,8 @@ instead.
     python -m src.eval_2p --agent ppo_nature --name my-2p-run --record \
         --opponent-checkpoint models/phase1-run_7100
 
-`build_2p_env` and `evaluate_2p_and_record` are also imported by src/train_2p.py
-(mirroring how train.py reuses src/eval.py).
+`build_2p_env` builds the full 2P environment + reward stack; `evaluate_2p_and_record`
+runs learner vs opponent and can optionally record a split-screen mp4.
 """
 import argparse
 import importlib
